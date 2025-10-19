@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { height: 100%; }
+
+:root {
+color-scheme: light dark;
+}
+
+/* basic light/dark body colors */
+body {
+@apply bg-gray-50 text-gray-900;
+}
+.dark body {
+@apply bg-gray-900 text-gray-100;
+}
+
+/* card + table borders for dark */
+.dark .border { @apply border-gray-700; }
+.dark table thead tr { @apply border-gray-700; }
+.dark table tbody tr { @apply border-gray-800; }
