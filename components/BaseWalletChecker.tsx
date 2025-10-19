@@ -31,6 +31,16 @@ function utcFromUnix(sec: number) {
   return new Date(sec * 1000).toUTCString();
 }
 
+/** generic array paginator */
+function paginate<T>(arr: T[], page: number, pageSize: number) {
+  const total = arr.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const end = Math.min(start + pageSize, total);
+  return { slice: arr.slice(start, end), total, totalPages, page: safePage, start: start + 1, end };
+}
+
 export default function BaseWalletChecker() {
   const [addr, setAddr] = useState("");
   const [days, setDays] = useState(30);
@@ -44,6 +54,12 @@ export default function BaseWalletChecker() {
   // purely for display; computed client-side to avoid SSR/CSR mismatch
   const [sinceText, setSinceText] = useState<string>("");
 
+  // pagination state
+  const [nativePage, setNativePage] = useState(1);
+  const [tokenPage, setTokenPage] = useState(1);
+  const [nativePageSize, setNativePageSize] = useState(10);
+  const [tokenPageSize, setTokenPageSize] = useState(10);
+
   const lowerAddr = addr.trim().toLowerCase();
 
   async function fetchAll() {
@@ -51,6 +67,11 @@ export default function BaseWalletChecker() {
     setError(null);
     setNativeTxs(null);
     setTokenTxs(null);
+
+    // reset pagination on new query
+    setNativePage(1);
+    setTokenPage(1);
+
     try {
       const a = addr.trim();
       if (!isEthAddr(a)) throw new Error("Enter a valid Base address (0x...)");
@@ -182,6 +203,21 @@ export default function BaseWalletChecker() {
     return todo;
   }, [totalBaseTxs, nativeVolumeUsd, peerSet.size, daysActive, tokenTxs]);
 
+  // -------- Paginators (derived) --------
+  const nativePaged = useMemo(() => {
+    if (!nativeTxs || nativeTxs.length === 0) {
+      return { slice: [] as Tx[], total: 0, totalPages: 1, page: 1, start: 0, end: 0 };
+    }
+    return paginate(nativeTxs, nativePage, nativePageSize);
+  }, [nativeTxs, nativePage, nativePageSize]);
+
+  const tokenPaged = useMemo(() => {
+    if (!tokenStats || tokenStats.length === 0) {
+      return { slice: [] as ReturnType<typeof tokenStats>[number][], total: 0, totalPages: 1, page: 1, start: 0, end: 0 };
+    }
+    return paginate(tokenStats, tokenPage, tokenPageSize);
+  }, [tokenStats, tokenPage, tokenPageSize]);
+
   return (
     <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-5">
       <p className="text-sm text-gray-300">
@@ -200,7 +236,7 @@ export default function BaseWalletChecker() {
         <label className="block">
           <span className="text-xs uppercase text-gray-400">Address</span>
           <input
-            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:ring focus:ring-gray-700  "
+            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:ring focus:ring-gray-700"
             placeholder="0x..."
             value={addr}
             onChange={(e) => setAddr(e.target.value)}
@@ -267,7 +303,16 @@ export default function BaseWalletChecker() {
 
       {nativeStats && nativeTxs && nativeTxs.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-lg font-semibold">Native Transfers (ETH on Base)</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Native Transfers (ETH on Base)</h2>
+            <PageControls
+              page={nativePaged.page}
+              totalPages={nativePaged.totalPages}
+              onPrev={() => setNativePage((p) => Math.max(1, p - 1))}
+              onNext={() => setNativePage((p) => Math.min(nativePaged.totalPages, p + 1))}
+            />
+          </div>
+
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat
               label="Incoming"
@@ -284,10 +329,22 @@ export default function BaseWalletChecker() {
               value={`${fmt(nativeStats.total)} ETH`}
               sub={usdPrice ? `$${fmt(nativeStats.total * (usdPrice || 0))}` : undefined}
             />
-            <Stat label="Tx count" value={`${nativeStats.count}`} />
+            <div className="flex items-center justify-end">
+              <PageSizeSelect
+                label="Rows"
+                value={nativePageSize}
+                onChange={(n) => { setNativePageSize(n); setNativePage(1); }}
+              />
+            </div>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-800">
+          <div className="mt-2 text-xs text-gray-400">
+            {nativePaged.total > 0
+              ? `Showing ${nativePaged.start}–${nativePaged.end} of ${nativePaged.total}`
+              : "No rows"}
+          </div>
+
+          <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-gray-800 bg-gray-950">
@@ -298,14 +355,12 @@ export default function BaseWalletChecker() {
                 </tr>
               </thead>
               <tbody>
-                {nativeTxs.map((t) => {
+                {nativePaged.slice.map((t) => {
                   const isIn = t.to && t.to.toLowerCase() === lowerAddr;
                   const vEth = weiToEth(t.value);
                   return (
                     <tr key={t.hash} className="border-b border-gray-900">
-                      <td className="py-2 pr-3">
-                        {utcFromUnix(Number(t.timeStamp))}
-                      </td>
+                      <td className="py-2 pr-3">{utcFromUnix(Number(t.timeStamp))}</td>
                       <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
                       <td className="py-2 pr-3">{fmt(vEth)} ETH</td>
                       <td className="py-2 pr-3">
@@ -329,7 +384,30 @@ export default function BaseWalletChecker() {
 
       {tokenStats && tokenStats.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
+            <PageControls
+              page={tokenPaged.page}
+              totalPages={tokenPaged.totalPages}
+              onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
+              onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
+            />
+          </div>
+
+          <div className="mt-2 flex items-center justify-end">
+            <PageSizeSelect
+              label="Rows"
+              value={tokenPageSize}
+              onChange={(n) => { setTokenPageSize(n); setTokenPage(1); }}
+            />
+          </div>
+
+          <div className="mt-2 text-xs text-gray-400">
+            {tokenPaged.total > 0
+              ? `Showing ${tokenPaged.start}–${tokenPaged.end} of ${tokenPaged.total}`
+              : "No rows"}
+          </div>
+
           <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
             <table className="min-w-full text-sm">
               <thead>
@@ -343,7 +421,7 @@ export default function BaseWalletChecker() {
                 </tr>
               </thead>
               <tbody>
-                {tokenStats.map((row) => (
+                {tokenPaged.slice.map((row) => (
                   <tr key={row.contract} className="border-b border-gray-900">
                     <td className="py-2 pr-3 font-medium">
                       {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
@@ -376,5 +454,70 @@ export default function BaseWalletChecker() {
         </p>
       )}
     </section>
+  );
+}
+
+/* ---------- small UI helpers ---------- */
+
+function PageControls({
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <button
+        onClick={onPrev}
+        disabled={page <= 1}
+        className="rounded-md border border-gray-800 px-2 py-1 disabled:opacity-50"
+      >
+        Prev
+      </button>
+      <span className="tabular-nums">
+        {page} / {totalPages}
+      </span>
+      <button
+        onClick={onNext}
+        disabled={page >= totalPages}
+        className="rounded-md border border-gray-800 px-2 py-1 disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  );
+}
+
+function PageSizeSelect({
+  label = "Rows",
+  value,
+  onChange,
+  options = [5, 10, 20, 50],
+}: {
+  label?: string;
+  value: number;
+  onChange: (n: number) => void;
+  options?: number[];
+}) {
+  return (
+    <label className="text-sm text-gray-300 flex items-center gap-2">
+      <span className="text-xs uppercase text-gray-400">{label}</span>
+      <select
+        className="rounded-md border border-gray-800 bg-gray-900 px-2 py-1"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      >
+        {options.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
