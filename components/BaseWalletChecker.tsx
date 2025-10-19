@@ -289,241 +289,246 @@ export default function BaseWalletChecker() {
   }, [tokenStats, tokenPage, tokenPageSize]);
 
   return (
-    <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-5">
-      <p className="text-sm text-gray-300">
-        Uses{" "}
-        <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
-          Blockscout
-        </a>{" "}
-        API + CoinGecko.
-      </p>
+    <>
+      {/* Loader Overlay */}
+      {loading && <LoaderOverlay message="Checking transactions on Base…" />}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] items-end">
-        <label className="block">
-          <span className="text-xs uppercase text-gray-400">Address</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:outline-none focus:ring-0"
-            placeholder="0x..."
-            value={addr}
-            onChange={(e) => setAddr(e.target.value)}
-          />
-        </label>
+      <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-5">
+        <p className="text-sm text-gray-300">
+          Uses{" "}
+          <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
+            Blockscout
+          </a>{" "}
+          API + CoinGecko.
+        </p>
 
-        <button
-          onClick={fetchAll}
-          disabled={loading}
-          className="rounded-xl border border-gray-800 bg-white text-black px-4 py-2 disabled:opacity-60"
-        >
-          {loading ? "Checking..." : "Check"}
-        </button>
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] items-end">
+          <label className="block">
+            <span className="text-xs uppercase text-gray-400">Address</span>
+            <input
+              className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:outline-none focus:ring-0"
+              placeholder="0x..."
+              value={addr}
+              onChange={(e) => setAddr(e.target.value)}
+            />
+          </label>
 
-        {!!usdPrice && (
-          <div className="text-right text-sm text-gray-300">
-            BASE price: ${fmt(usdPrice, 4)}
+          <button
+            onClick={fetchAll}
+            disabled={loading}
+            className="rounded-xl border border-gray-800 bg-white text-black px-4 py-2 disabled:opacity-60"
+          >
+            {loading ? "Checking..." : "Check"}
+          </button>
+
+          {!!usdPrice && (
+            <div className="text-right text-sm text-gray-300">
+              BASE price: ${fmt(usdPrice, 4)}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-2xl border border-red-800 bg-red-950/40 p-3 text-red-300">
+            {error}
           </div>
         )}
-      </div>
 
-      {error && (
-        <div className="mt-4 rounded-2xl border border-red-800 bg-red-950/40 p-3 text-red-300">
-          {error}
-        </div>
-      )}
+        {(nativeStats || tokenStats) && (
+          <section className="mt-6">
+            <h2 className="text-lg font-semibold">Overview</h2>
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat label="Total Base txs" value={totalBaseTxs} />
+              <Stat
+                label="Native volume"
+                value={`${fmt(nativeVolumeEth)} ETH`}
+                sub={usdPrice ? `$${fmt(nativeVolumeUsd || 0)}` : undefined}
+              />
+              <Stat label="Unique peers" value={peerSet.size} />
+              <Stat label="Days active" value={daysActive} />
+            </div>
 
-      {(nativeStats || tokenStats) && (
-        <section className="mt-6">
-          <h2 className="text-lg font-semibold">Overview</h2>
-          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat label="Total Base txs" value={totalBaseTxs} />
-            <Stat
-              label="Native volume"
-              value={`${fmt(nativeVolumeEth)} ETH`}
-              sub={usdPrice ? `$${fmt(nativeVolumeUsd || 0)}` : undefined}
-            />
-            <Stat label="Unique peers" value={peerSet.size} />
-            <Stat label="Days active" value={daysActive} />
-          </div>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat label="Est. airdrop %" value={`${airdropPercent}%`} />
+              <Stat label="Native tx count" value={nativeStats ? nativeStats.count : 0} />
+              <Stat label="Token transfers" value={tokenTxs ? tokenTxs.length : 0} />
+              <Stat label="NFT transfers" value={nftTransferCount} />
+            </div>
 
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat label="Est. airdrop %" value={`${airdropPercent}%`} />
-            <Stat label="Native tx count" value={nativeStats ? nativeStats.count : 0} />
-            <Stat label="Token transfers" value={tokenTxs ? tokenTxs.length : 0} />
-            <Stat label="NFT transfers" value={nftTransferCount} />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat label="Contracts deployed" value={contractsDeployed} />
-            <Stat
-              label="Fee spent"
-              value={`${fmt(feeSpentEth)} ETH`}
-              sub={usdPrice != null ? `$${fmt(feeSpentUsd || 0)}` : undefined}
-            />
-            <Stat
-              label="ETH balance"
-              value={balanceEth != null ? `${fmt(balanceEth)} ETH` : "—"}
-              sub={balanceUsd != null ? `$${fmt(balanceUsd)}` : undefined}
-            />
-            <Stat
-              label="Stake / Liquidity"
-              value="—"
-              sub="Needs protocol maps"
-            />
-          </div>
-        </section>
-      )}
-
-      {nativeStats && nativeTxs && nativeTxs.length > 0 && (
-        <section className="mt-8">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold">Native Transfers (ETH on Base)</h2>
-            <PageControls
-              page={nativePaged.page}
-              totalPages={nativePaged.totalPages}
-              onPrev={() => setNativePage((p) => Math.max(1, p - 1))}
-              onNext={() => setNativePage((p) => Math.min(nativePaged.totalPages, p + 1))}
-            />
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Stat
-              label="Incoming"
-              value={`${fmt(nativeStats.in)} ETH`}
-              sub={usdPrice ? `$${fmt(nativeStats.in * (usdPrice || 0))}` : undefined}
-            />
-            <Stat
-              label="Outgoing"
-              value={`${fmt(nativeStats.out)} ETH`}
-              sub={usdPrice ? `$${fmt(nativeStats.out * (usdPrice || 0))}` : undefined}
-            />
-            <Stat
-              label="Total moved"
-              value={`${fmt(nativeStats.total)} ETH`}
-              sub={usdPrice ? `$${fmt(nativeStats.total * (usdPrice || 0))}` : undefined}
-            />
-            <div className="flex items-center justify-end">
-              <PageSizeSelect
-                label="Rows"
-                value={nativePageSize}
-                onChange={(n) => { setNativePageSize(n); setNativePage(1); }}
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat label="Contracts deployed" value={contractsDeployed} />
+              <Stat
+                label="Fee spent"
+                value={`${fmt(feeSpentEth)} ETH`}
+                sub={usdPrice != null ? `$${fmt(feeSpentUsd || 0)}` : undefined}
+              />
+              <Stat
+                label="ETH balance"
+                value={balanceEth != null ? `${fmt(balanceEth)} ETH` : "—"}
+                sub={balanceUsd != null ? `$${fmt(balanceUsd)}` : undefined}
+              />
+              <Stat
+                label="Stake / Liquidity"
+                value="—"
+                sub="Needs protocol maps"
               />
             </div>
-          </div>
+          </section>
+        )}
 
-          <div className="mt-2 text-xs text-gray-400">
-            {nativePaged.total > 0
-              ? `Showing ${nativePaged.start}–${nativePaged.end} of ${nativePaged.total}`
-              : "No rows"}
-          </div>
+        {nativeStats && nativeTxs && nativeTxs.length > 0 && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold">Native Transfers (ETH on Base)</h2>
+              <PageControls
+                page={nativePaged.page}
+                totalPages={nativePaged.totalPages}
+                onPrev={() => setNativePage((p) => Math.max(1, p - 1))}
+                onNext={() => setNativePage((p) => Math.min(nativePaged.totalPages, p + 1))}
+              />
+            </div>
 
-          <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-800 bg-gray-950">
-                  <th className="py-2 pr-3">Time (UTC)</th>
-                  <th className="py-2 pr-3">Dir</th>
-                  <th className="py-2 pr-3">Amount</th>
-                  <th className="py-2 pr-3">Hash</th>
-                </tr>
-              </thead>
-              <tbody>
-                {nativePaged.slice.map((t) => {
-                  const isIn = t.to && t.to.toLowerCase() === lowerAddr;
-                  const vEth = weiToEth(t.value);
-                  return (
-                    <tr key={t.hash} className="border-b border-gray-900">
-                      <td className="py-2 pr-3">{new Date(Number(t.timeStamp) * 1000).toUTCString()}</td>
-                      <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
-                      <td className="py-2 pr-3">{fmt(vEth)} ETH</td>
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Stat
+                label="Incoming"
+                value={`${fmt(nativeStats.in)} ETH`}
+                sub={usdPrice ? `$${fmt(nativeStats.in * (usdPrice || 0))}` : undefined}
+              />
+              <Stat
+                label="Outgoing"
+                value={`${fmt(nativeStats.out)} ETH`}
+                sub={usdPrice ? `$${fmt(nativeStats.out * (usdPrice || 0))}` : undefined}
+              />
+              <Stat
+                label="Total moved"
+                value={`${fmt(nativeStats.total)} ETH`}
+                sub={usdPrice ? `$${fmt(nativeStats.total * (usdPrice || 0))}` : undefined}
+              />
+              <div className="flex items-center justify-end">
+                <PageSizeSelect
+                  label="Rows"
+                  value={nativePageSize}
+                  onChange={(n) => { setNativePageSize(n); setNativePage(1); }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-2 text-xs text-gray-400">
+              {nativePaged.total > 0
+                ? `Showing ${nativePaged.start}–${nativePaged.end} of ${nativePaged.total}`
+                : "No rows"}
+            </div>
+
+            <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b border-gray-800 bg-gray-950">
+                    <th className="py-2 pr-3">Time (UTC)</th>
+                    <th className="py-2 pr-3">Dir</th>
+                    <th className="py-2 pr-3">Amount</th>
+                    <th className="py-2 pr-3">Hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nativePaged.slice.map((t) => {
+                    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
+                    const vEth = weiToEth(t.value);
+                    return (
+                      <tr key={t.hash} className="border-b border-gray-900">
+                        <td className="py-2 pr-3">{new Date(Number(t.timeStamp) * 1000).toUTCString()}</td>
+                        <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
+                        <td className="py-2 pr-3">{fmt(vEth)} ETH</td>
+                        <td className="py-2 pr-3">
+                          <a
+                            className="underline"
+                            href={`https://base.blockscout.com/tx/${t.hash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t.hash.slice(0, 10)}…
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {tokenStats && tokenStats.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-center justify-between gap-6">
+              <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
+              <div className="flex items-center gap-4">
+                <PageSizeSelect
+                  label="Rows"
+                  value={tokenPageSize}
+                  onChange={(n) => { setTokenPageSize(n); setTokenPage(1); }}
+                />
+                <PageControls
+                  page={tokenPaged.page}
+                  totalPages={tokenPaged.totalPages}
+                  onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
+                  onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
+                />
+              </div>
+            </div>
+
+            <div className="mt-2 text-xs text-gray-400">
+              {tokenPaged.total > 0
+                ? `Showing ${tokenPaged.start}–${tokenPaged.end} of ${tokenPaged.total}`
+                : "No rows"}
+            </div>
+
+            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b border-gray-800 bg-gray-950">
+                    <th className="py-2 pr-3">Token</th>
+                    <th className="py-2 pr-3">In</th>
+                    <th className="py-2 pr-3">Out</th>
+                    <th className="py-2 pr-3">Total</th>
+                    <th className="py-2 pr-3">Transfers</th>
+                    <th className="py-2 pr-3">Contract</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tokenPaged.slice.map((row) => (
+                    <tr key={row.contract} className="border-b border-gray-900">
+                      <td className="py-2 pr-3 font-medium">
+                        {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
+                      </td>
+                      <td className="py-2 pr-3">{fmt(row.in)}</td>
+                      <td className="py-2 pr-3">{fmt(row.out)}</td>
+                      <td className="py-2 pr-3">{fmt(row.total)}</td>
+                      <td className="py-2 pr-3">{row.count}</td>
                       <td className="py-2 pr-3">
                         <a
                           className="underline"
-                          href={`https://base.blockscout.com/tx/${t.hash}`}
+                          href={`https://base.blockscout.com/address/${row.contract}`}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          {t.hash.slice(0, 10)}…
+                          {row.contract.slice(0, 10)}…
                         </a>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {tokenStats && tokenStats.length > 0 && (
-        <section className="mt-10">
-          <div className="flex items-center justify-between gap-6">
-            <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
-            <div className="flex items-center gap-4">
-              <PageSizeSelect
-                label="Rows"
-                value={tokenPageSize}
-                onChange={(n) => { setTokenPageSize(n); setTokenPage(1); }}
-              />
-              <PageControls
-                page={tokenPaged.page}
-                totalPages={tokenPaged.totalPages}
-                onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
-                onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
-              />
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </section>
+        )}
 
-          <div className="mt-2 text-xs text-gray-400">
-            {tokenPaged.total > 0
-              ? `Showing ${tokenPaged.start}–${tokenPaged.end} of ${tokenPaged.total}`
-              : "No rows"}
-          </div>
-
-          <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left border-b border-gray-800 bg-gray-950">
-                  <th className="py-2 pr-3">Token</th>
-                  <th className="py-2 pr-3">In</th>
-                  <th className="py-2 pr-3">Out</th>
-                  <th className="py-2 pr-3">Total</th>
-                  <th className="py-2 pr-3">Transfers</th>
-                  <th className="py-2 pr-3">Contract</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tokenPaged.slice.map((row) => (
-                  <tr key={row.contract} className="border-b border-gray-900">
-                    <td className="py-2 pr-3 font-medium">
-                      {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
-                    </td>
-                    <td className="py-2 pr-3">{fmt(row.in)}</td>
-                    <td className="py-2 pr-3">{fmt(row.out)}</td>
-                    <td className="py-2 pr-3">{fmt(row.total)}</td>
-                    <td className="py-2 pr-3">{row.count}</td>
-                    <td className="py-2 pr-3">
-                      <a
-                        className="underline"
-                        href={`https://base.blockscout.com/address/${row.contract}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {row.contract.slice(0, 10)}…
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {!loading && !error && !nativeStats && (
-        <p className="mt-8 text-sm text-gray-300">
-          Enter an address and click <b>Check</b> to see recent activity.
-        </p>
-      )}
-    </section>
+        {!loading && !error && !nativeStats && (
+          <p className="mt-8 text-sm text-gray-300">
+            Enter an address and click <b>Check</b> to see recent activity.
+          </p>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -589,5 +594,22 @@ function PageSizeSelect({
         ))}
       </select>
     </label>
+  );
+}
+
+/* ---------- loader overlay ---------- */
+function LoaderOverlay({ message = "Loading…" }: { message?: string }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 rounded-full border-4 border-gray-400 border-t-transparent animate-spin" />
+        <div className="text-gray-100 text-sm">{message}</div>
+      </div>
+    </div>
   );
 }
