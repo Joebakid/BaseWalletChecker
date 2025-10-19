@@ -40,6 +40,16 @@ type NftTx = {
   timeStamp: string;
 };
 
+type TokenStat = {
+  contract: string;
+  name: string;
+  symbol: string;
+  in: number;
+  out: number;
+  total: number;
+  count: number;
+};
+
 /** generic array paginator (for UI tables) */
 function paginate<T>(arr: T[], page: number, pageSize: number) {
   const total = arr.length;
@@ -181,7 +191,7 @@ export default function BaseWalletChecker() {
     return weiTotal / 1e18;
   }, [nativeTxs, lowerAddr]);
 
-  const tokenStats = useMemo(() => {
+  const tokenStats = useMemo<TokenStat[] | null>(() => {
     if (!tokenTxs) return null;
     const map = new Map<
       string,
@@ -198,9 +208,10 @@ export default function BaseWalletChecker() {
       else rec.out += amt;
       rec.count += 1;
     }
-    return Array.from(map.entries())
+    const arr: TokenStat[] = Array.from(map.entries())
       .map(([contract, v]) => ({ contract, ...v, total: v.in + v.out }))
       .sort((a, b) => b.total - a.total);
+    return arr;
   }, [tokenTxs, lowerAddr]);
 
   // Simple counts / KPIs
@@ -272,7 +283,7 @@ export default function BaseWalletChecker() {
 
   const tokenPaged = useMemo(() => {
     if (!tokenStats || tokenStats.length === 0) {
-      return { slice: [] as ReturnType<typeof tokenStats>[number][], total: 0, totalPages: 1, page: 1, start: 0, end: 0 };
+      return { slice: [] as TokenStat[], total: 0, totalPages: 1, page: 1, start: 0, end: 0 };
     }
     return paginate(tokenStats, tokenPage, tokenPageSize);
   }, [tokenStats, tokenPage, tokenPageSize]);
