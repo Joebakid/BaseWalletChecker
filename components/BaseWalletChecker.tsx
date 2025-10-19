@@ -293,7 +293,7 @@ export default function BaseWalletChecker() {
       {/* Loader Overlay */}
       {loading && <LoaderOverlay message="Checking transactions on Base…" />}
 
-      <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-5">
+      <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-4 sm:p-5">
         <p className="text-sm text-gray-300">
           Uses{" "}
           <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
@@ -337,7 +337,9 @@ export default function BaseWalletChecker() {
         {(nativeStats || tokenStats) && (
           <section className="mt-6">
             <h2 className="text-lg font-semibold">Overview</h2>
-            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+            {/* Stat groups: single column on small screens */}
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Total Base txs" value={totalBaseTxs} />
               <Stat
                 label="Native volume"
@@ -348,14 +350,14 @@ export default function BaseWalletChecker() {
               <Stat label="Days active" value={daysActive} />
             </div>
 
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Est. airdrop %" value={`${airdropPercent}%`} />
               <Stat label="Native tx count" value={nativeStats ? nativeStats.count : 0} />
               <Stat label="Token transfers" value={tokenTxs ? tokenTxs.length : 0} />
               <Stat label="NFT transfers" value={nftTransferCount} />
             </div>
 
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Contracts deployed" value={contractsDeployed} />
               <Stat
                 label="Fee spent"
@@ -378,7 +380,8 @@ export default function BaseWalletChecker() {
 
         {nativeStats && nativeTxs && nativeTxs.length > 0 && (
           <section className="mt-8">
-            <div className="flex items-center justify-between gap-4">
+            {/* Header stacks on mobile */}
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
               <h2 className="text-lg font-semibold">Native Transfers (ETH on Base)</h2>
               <PageControls
                 page={nativePaged.page}
@@ -388,7 +391,7 @@ export default function BaseWalletChecker() {
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <Stat
                 label="Incoming"
                 value={`${fmt(nativeStats.in)} ETH`}
@@ -420,13 +423,13 @@ export default function BaseWalletChecker() {
             </div>
 
             <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-sm table-fixed">
                 <thead>
                   <tr className="text-left border-b border-gray-800 bg-gray-950">
                     <th className="py-2 pr-3">Time (UTC)</th>
                     <th className="py-2 pr-3">Dir</th>
                     <th className="py-2 pr-3">Amount</th>
-                    <th className="py-2 pr-3">Hash</th>
+                    <th className="py-2 pr-3 hidden md:table-cell">Hash</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -437,10 +440,10 @@ export default function BaseWalletChecker() {
                       <tr key={t.hash} className="border-b border-gray-900">
                         <td className="py-2 pr-3">{new Date(Number(t.timeStamp) * 1000).toUTCString()}</td>
                         <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
-                        <td className="py-2 pr-3">{fmt(vEth)} ETH</td>
-                        <td className="py-2 pr-3">
+                        <td className="py-2 pr-3 whitespace-nowrap">{fmt(vEth)} ETH</td>
+                        <td className="py-2 pr-3 hidden md:table-cell">
                           <a
-                            className="underline"
+                            className="underline break-all text-xs"
                             href={`https://base.blockscout.com/tx/${t.hash}`}
                             target="_blank"
                             rel="noreferrer"
@@ -459,9 +462,10 @@ export default function BaseWalletChecker() {
 
         {tokenStats && tokenStats.length > 0 && (
           <section className="mt-10">
-            <div className="flex items-center justify-between gap-6">
+            {/* Header stacks on mobile */}
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-6">
               <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <PageSizeSelect
                   label="Rows"
                   value={tokenPageSize}
@@ -483,7 +487,7 @@ export default function BaseWalletChecker() {
             </div>
 
             <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-sm table-fixed">
                 <thead>
                   <tr className="text-left border-b border-gray-800 bg-gray-950">
                     <th className="py-2 pr-3">Token</th>
@@ -491,22 +495,22 @@ export default function BaseWalletChecker() {
                     <th className="py-2 pr-3">Out</th>
                     <th className="py-2 pr-3">Total</th>
                     <th className="py-2 pr-3">Transfers</th>
-                    <th className="py-2 pr-3">Contract</th>
+                    <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tokenPaged.slice.map((row) => (
                     <tr key={row.contract} className="border-b border-gray-900">
-                      <td className="py-2 pr-3 font-medium">
+                      <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
                         {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
                       </td>
-                      <td className="py-2 pr-3">{fmt(row.in)}</td>
-                      <td className="py-2 pr-3">{fmt(row.out)}</td>
-                      <td className="py-2 pr-3">{fmt(row.total)}</td>
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">{fmt(row.in)}</td>
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">{fmt(row.out)}</td>
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">{fmt(row.total)}</td>
                       <td className="py-2 pr-3">{row.count}</td>
-                      <td className="py-2 pr-3">
+                      <td className="py-2 pr-3 hidden md:table-cell">
                         <a
-                          className="underline"
+                          className="underline break-all text-xs"
                           href={`https://base.blockscout.com/address/${row.contract}`}
                           target="_blank"
                           rel="noreferrer"
@@ -546,7 +550,7 @@ function PageControls({
   onNext: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm">
       <button
         onClick={onPrev}
         disabled={page <= 1}
