@@ -27,6 +27,10 @@ type TokenTx = {
   timeStamp: string;
 };
 
+function utcFromUnix(sec: number) {
+  return new Date(sec * 1000).toUTCString();
+}
+
 export default function BaseWalletChecker() {
   const [addr, setAddr] = useState("");
   const [days, setDays] = useState(30);
@@ -37,9 +41,9 @@ export default function BaseWalletChecker() {
   const [tokenTxs, setTokenTxs] = useState<TokenTx[] | null>(null);
   const [usdPrice, setUsdPrice] = useState<number | null>(null);
 
-  const until = nowSec();
-  const since = useMemo(() => until - days * 24 * 3600, [days, until]);
-  const sinceNice = useMemo(() => new Date(since * 1000).toLocaleString(), [since]);
+  // purely for display; computed client-side to avoid SSR/CSR mismatch
+  const [sinceText, setSinceText] = useState<string>("");
+
   const lowerAddr = addr.trim().toLowerCase();
 
   async function fetchAll() {
@@ -50,6 +54,11 @@ export default function BaseWalletChecker() {
     try {
       const a = addr.trim();
       if (!isEthAddr(a)) throw new Error("Enter a valid Base address (0x...)");
+
+      // Compute lookback window *now* on the client
+      const until = nowSec();
+      const since = until - days * 24 * 3600;
+      setSinceText(utcFromUnix(since));
 
       // Native transfers
       const txUrl = `${BASE_BLOCKSCOUT}?module=account&action=txlist&address=${a}&sort=desc`;
@@ -180,14 +189,18 @@ export default function BaseWalletChecker() {
         <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
           Blockscout
         </a>{" "}
-        API + CoinGecko. Data since <strong>{sinceNice}</strong>.
+        API + CoinGecko. Data since{" "}
+        <strong suppressHydrationWarning>
+          {sinceText || "—"}
+        </strong>
+        {" "} (UTC).
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] items-end">
         <label className="block">
           <span className="text-xs uppercase text-gray-400">Address</span>
           <input
-            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:ring focus:ring-gray-700"
+            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:ring focus:ring-gray-700  "
             placeholder="0x..."
             value={addr}
             onChange={(e) => setAddr(e.target.value)}
@@ -259,17 +272,17 @@ export default function BaseWalletChecker() {
             <Stat
               label="Incoming"
               value={`${fmt(nativeStats.in)} ETH`}
-              sub={usdPrice ? `$${fmt((nativeStats.in) * (usdPrice || 0))}` : undefined}
+              sub={usdPrice ? `$${fmt(nativeStats.in * (usdPrice || 0))}` : undefined}
             />
             <Stat
               label="Outgoing"
               value={`${fmt(nativeStats.out)} ETH`}
-              sub={usdPrice ? `$${fmt((nativeStats.out) * (usdPrice || 0))}` : undefined}
+              sub={usdPrice ? `$${fmt(nativeStats.out * (usdPrice || 0))}` : undefined}
             />
             <Stat
               label="Total moved"
               value={`${fmt(nativeStats.total)} ETH`}
-              sub={usdPrice ? `$${fmt((nativeStats.total) * (usdPrice || 0))}` : undefined}
+              sub={usdPrice ? `$${fmt(nativeStats.total * (usdPrice || 0))}` : undefined}
             />
             <Stat label="Tx count" value={`${nativeStats.count}`} />
           </div>
@@ -278,7 +291,7 @@ export default function BaseWalletChecker() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-gray-800 bg-gray-950">
-                  <th className="py-2 pr-3">Time</th>
+                  <th className="py-2 pr-3">Time (UTC)</th>
                   <th className="py-2 pr-3">Dir</th>
                   <th className="py-2 pr-3">Amount</th>
                   <th className="py-2 pr-3">Hash</th>
@@ -291,7 +304,7 @@ export default function BaseWalletChecker() {
                   return (
                     <tr key={t.hash} className="border-b border-gray-900">
                       <td className="py-2 pr-3">
-                        {new Date(Number(t.timeStamp) * 1000).toLocaleString()}
+                        {utcFromUnix(Number(t.timeStamp))}
                       </td>
                       <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
                       <td className="py-2 pr-3">{fmt(vEth)} ETH</td>
