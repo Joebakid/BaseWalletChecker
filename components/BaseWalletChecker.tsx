@@ -4,15 +4,17 @@
 import React, { useMemo, useState } from "react";
 import Stat from "@/components/Stat";
 import { BASE_BLOCKSCOUT, COINGECKO_PRICE, fetchJSON } from "@/lib/api";
-import { fmt, isEthAddr, nowSec, weiToEth } from "@/lib/utils";
+import { fmt, isEthAddr, weiToEth } from "@/lib/utils";
 
 type Tx = {
   hash: string;
   from: string;
-  to: string | null;
+  to: string | null;       // null/"" for contract creation
   value: string;           // wei (string)
   timeStamp: string;       // unix seconds (string)
   isError?: string;        // "1" means failed
+  gasPrice?: string;       // wei (string)
+  gasUsed?: string;        // units (string)
 };
 
 type TokenTx = {
@@ -27,11 +29,18 @@ type TokenTx = {
   timeStamp: string;
 };
 
-function utcFromUnix(sec: number) {
-  return new Date(sec * 1000).toUTCString();
-}
+type NftTx = {
+  hash: string;
+  from: string;
+  to: string;
+  contractAddress: string;
+  tokenName: string;
+  tokenSymbol: string;
+  tokenID: string;
+  timeStamp: string;
+};
 
-/** generic array paginator */
+/** generic array paginator (for UI tables) */
 function paginate<T>(arr: T[], page: number, pageSize: number) {
   const total = arr.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -41,20 +50,41 @@ function paginate<T>(arr: T[], page: number, pageSize: number) {
   return { slice: arr.slice(start, end), total, totalPages, page: safePage, start: start + 1, end };
 }
 
+// Base mainnet launch: Aug 9, 2023 00:00:00 UTC
+const BASE_MAINNET_LAUNCH = 1691539200;
+
+/** Fetch all pages from Blockscout for a given "action" */
+async function fetchPaged<T>(
+  action: string,
+  address: string,
+  sort: "asc" | "desc" = "desc",
+  pageLimit = 10,
+  offset = 10000
+) {
+  const out: T[] = [];
+  for (let page = 1; page <= pageLimit; page++) {
+    const url = `${BASE_BLOCKSCOUT}?module=account&action=${action}&address=${address}&page=${page}&offset=${offset}&sort=${sort}`;
+    const data = await fetchJSON<{ result: T[] }>(url);
+    const arr = Array.isArray(data?.result) ? data.result : [];
+    out.push(...arr);
+    if (arr.length < offset) break; // no more pages
+  }
+  return out;
+}
+
 export default function BaseWalletChecker() {
   const [addr, setAddr] = useState("");
-  const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [nativeTxs, setNativeTxs] = useState<Tx[] | null>(null);
   const [tokenTxs, setTokenTxs] = useState<TokenTx[] | null>(null);
+  const [nftTxs, setNftTxs] = useState<NftTx[] | null>(null);
+
   const [usdPrice, setUsdPrice] = useState<number | null>(null);
+  const [balanceEth, setBalanceEth] = useState<number | null>(null);
 
-  // purely for display; computed client-side to avoid SSR/CSR mismatch
-  const [sinceText, setSinceText] = useState<string>("");
-
-  // pagination state
+  // pagination state (UI)
   const [nativePage, setNativePage] = useState(1);
   const [tokenPage, setTokenPage] = useState(1);
   const [nativePageSize, setNativePageSize] = useState(10);
@@ -67,6 +97,8 @@ export default function BaseWalletChecker() {
     setError(null);
     setNativeTxs(null);
     setTokenTxs(null);
+    setNftTxs(null);
+    setBalanceEth(null);
 
     // reset pagination on new query
     setNativePage(1);
@@ -76,24 +108,32 @@ export default function BaseWalletChecker() {
       const a = addr.trim();
       if (!isEthAddr(a)) throw new Error("Enter a valid Base address (0x...)");
 
-      // Compute lookback window *now* on the client
-      const until = nowSec();
-      const since = until - days * 24 * 3600;
-      setSinceText(utcFromUnix(since));
+      // Always use Base launch as lower bound
+      const since = BASE_MAINNET_LAUNCH;
 
-      // Native transfers
-      const txUrl = `${BASE_BLOCKSCOUT}?module=account&action=txlist&address=${a}&sort=desc`;
-      const txData = await fetchJSON<{ result: Tx[] }>(txUrl);
-      const txs = Array.isArray(txData?.result) ? txData.result : [];
-      const txsInRange = txs.filter(
+      // Native transfers (paged)
+      const txsAll = await fetchPaged<Tx>("txlist", a, "desc", 10);
+      const txsInRange = txsAll.filter(
         (t) => t.isError !== "1" && Number(t.timeStamp) >= since
       );
 
-      // ERC-20 transfers
-      const tokUrl = `${BASE_BLOCKSCOUT}?module=account&action=tokentx&address=${a}&sort=desc`;
-      const tokData = await fetchJSON<{ result: TokenTx[] }>(tokUrl);
-      const toks = Array.isArray(tokData?.result) ? tokData.result : [];
-      const toksInRange = toks.filter((t) => Number(t.timeStamp) >= since);
+      // ERC-20 transfers (paged)
+      const toksAll = await fetchPaged<TokenTx>("tokentx", a, "desc", 10);
+      const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
+
+      // NFT transfers (paged)
+      const nftsAll = await fetchPaged<NftTx>("tokennfttx", a, "desc", 10);
+      const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
+
+      // Balance
+      try {
+        const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
+        const balData = await fetchJSON<{ result: string }>(balUrl);
+        const wei = BigInt(balData?.result ?? "0");
+        setBalanceEth(Number(wei) / 1e18);
+      } catch {
+        setBalanceEth(null);
+      }
 
       // Price (optional)
       try {
@@ -105,6 +145,7 @@ export default function BaseWalletChecker() {
 
       setNativeTxs(txsInRange);
       setTokenTxs(toksInRange);
+      setNftTxs(nftsInRange);
     } catch (e: any) {
       setError(e?.message || "Something went wrong");
     } finally {
@@ -124,6 +165,20 @@ export default function BaseWalletChecker() {
     }
     const total = incoming + outgoing;
     return { in: incoming, out: outgoing, total, count: nativeTxs.length };
+  }, [nativeTxs, lowerAddr]);
+
+  // Fees spent = sum(gasUsed * gasPrice) for txs you SENT
+  const feeSpentEth = useMemo(() => {
+    if (!nativeTxs) return 0;
+    let weiTotal = 0;
+    for (const t of nativeTxs) {
+      const sentByUser = t.from?.toLowerCase() === lowerAddr;
+      if (!sentByUser) continue;
+      const gP = Number(t.gasPrice || 0);
+      const gU = Number(t.gasUsed || 0);
+      if (gP && gU) weiTotal += gP * gU;
+    }
+    return weiTotal / 1e18;
   }, [nativeTxs, lowerAddr]);
 
   const tokenStats = useMemo(() => {
@@ -148,10 +203,23 @@ export default function BaseWalletChecker() {
       .sort((a, b) => b.total - a.total);
   }, [tokenTxs, lowerAddr]);
 
-  // KPIs
+  // Simple counts / KPIs
   const totalBaseTxs = (nativeTxs?.length || 0) + (tokenTxs?.length || 0);
   const nativeVolumeEth = nativeStats ? nativeStats.total : 0;
   const nativeVolumeUsd = usdPrice ? nativeVolumeEth * usdPrice : null;
+  const feeSpentUsd = usdPrice ? feeSpentEth * usdPrice : null;
+  const balanceUsd = usdPrice && balanceEth != null ? balanceEth * usdPrice : null;
+
+  // Contract deployments = native txs with to == null/empty/zero
+  const contractsDeployed = useMemo(() => {
+    if (!nativeTxs) return 0;
+    return nativeTxs.filter(
+      (t) => !t.to || t.to === "0x0000000000000000000000000000000000000000"
+    ).length;
+  }, [nativeTxs]);
+
+  // NFT count
+  const nftTransferCount = nftTxs?.length || 0;
 
   // Peer set (unique addresses interacted with)
   const peerSet = useMemo(() => {
@@ -163,8 +231,9 @@ export default function BaseWalletChecker() {
     };
     nativeTxs?.forEach((t) => { add(t.from); add(t.to); });
     tokenTxs?.forEach((t) => { add(t.from); add(t.to); });
+    nftTxs?.forEach((t) => { add(t.from); add(t.to); });
     return s;
-  }, [nativeTxs, tokenTxs, lowerAddr]);
+  }, [nativeTxs, tokenTxs, nftTxs, lowerAddr]);
 
   // Days active
   const daysActive = useMemo(() => {
@@ -175,8 +244,9 @@ export default function BaseWalletChecker() {
     };
     nativeTxs?.forEach((t) => push(Number(t.timeStamp)));
     tokenTxs?.forEach((t) => push(Number(t.timeStamp)));
+    nftTxs?.forEach((t) => push(Number(t.timeStamp)));
     return ds.size;
-  }, [nativeTxs, tokenTxs]);
+  }, [nativeTxs, tokenTxs, nftTxs]);
 
   // Rough airdrop score (%)
   const airdropPercent = useMemo(() => {
@@ -191,17 +261,6 @@ export default function BaseWalletChecker() {
     const score = w1 * txScore + w2 * tokenScore + w3 * volScore + w4 * peersScore + w5 * cadenceScore;
     return Math.round(score * 100);
   }, [totalBaseTxs, tokenTxs, nativeVolumeUsd, peerSet.size, daysActive]);
-
-  // Suggested criteria
-  const criteria = useMemo(() => {
-    const todo: { label: string; pass: boolean }[] = [];
-    todo.push({ label: "At least 25 total txs in lookback", pass: totalBaseTxs >= 25 });
-    todo.push({ label: "≥ $250 native volume moved", pass: (nativeVolumeUsd || 0) >= 250 });
-    todo.push({ label: "Interact with ≥ 10 unique addresses", pass: peerSet.size >= 10 });
-    todo.push({ label: "Be active on ≥ 10 distinct days", pass: daysActive >= 10 });
-    todo.push({ label: "Include ≥ 5 ERC-20 transfers", pass: (tokenTxs?.length || 0) >= 5 });
-    return todo;
-  }, [totalBaseTxs, nativeVolumeUsd, peerSet.size, daysActive, tokenTxs]);
 
   // -------- Paginators (derived) --------
   const nativePaged = useMemo(() => {
@@ -225,35 +284,17 @@ export default function BaseWalletChecker() {
         <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
           Blockscout
         </a>{" "}
-        API + CoinGecko. Data since{" "}
-        <strong suppressHydrationWarning>
-          {sinceText || "—"}
-        </strong>
-        {" "} (UTC).
+        API + CoinGecko.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] items-end">
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] items-end">
         <label className="block">
           <span className="text-xs uppercase text-gray-400">Address</span>
           <input
-            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:ring focus:ring-gray-700"
+            className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:outline-none focus:ring-0"
             placeholder="0x..."
             value={addr}
             onChange={(e) => setAddr(e.target.value)}
-          />
-        </label>
-
-        <label className="block">
-          <span className="text-xs uppercase text-gray-400">Days</span>
-          <input
-            type="number"
-            min={1}
-            max={365}
-            className="mt-1 w-24 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:ring focus:ring-gray-700"
-            value={days}
-            onChange={(e) =>
-              setDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))
-            }
           />
         </label>
 
@@ -296,14 +337,33 @@ export default function BaseWalletChecker() {
             <Stat label="Est. airdrop %" value={`${airdropPercent}%`} />
             <Stat label="Native tx count" value={nativeStats ? nativeStats.count : 0} />
             <Stat label="Token transfers" value={tokenTxs ? tokenTxs.length : 0} />
-            <Stat label="Window (days)" value={days} />
+            <Stat label="NFT transfers" value={nftTransferCount} />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Stat label="Contracts deployed" value={contractsDeployed} />
+            <Stat
+              label="Fee spent"
+              value={`${fmt(feeSpentEth)} ETH`}
+              sub={usdPrice != null ? `$${fmt(feeSpentUsd || 0)}` : undefined}
+            />
+            <Stat
+              label="ETH balance"
+              value={balanceEth != null ? `${fmt(balanceEth)} ETH` : "—"}
+              sub={balanceUsd != null ? `$${fmt(balanceUsd)}` : undefined}
+            />
+            <Stat
+              label="Stake / Liquidity"
+              value="—"
+              sub="Needs protocol maps"
+            />
           </div>
         </section>
       )}
 
       {nativeStats && nativeTxs && nativeTxs.length > 0 && (
         <section className="mt-8">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold">Native Transfers (ETH on Base)</h2>
             <PageControls
               page={nativePaged.page}
@@ -313,7 +373,7 @@ export default function BaseWalletChecker() {
             />
           </div>
 
-          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Stat
               label="Incoming"
               value={`${fmt(nativeStats.in)} ETH`}
@@ -360,7 +420,7 @@ export default function BaseWalletChecker() {
                   const vEth = weiToEth(t.value);
                   return (
                     <tr key={t.hash} className="border-b border-gray-900">
-                      <td className="py-2 pr-3">{utcFromUnix(Number(t.timeStamp))}</td>
+                      <td className="py-2 pr-3">{new Date(Number(t.timeStamp) * 1000).toUTCString()}</td>
                       <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
                       <td className="py-2 pr-3">{fmt(vEth)} ETH</td>
                       <td className="py-2 pr-3">
@@ -383,23 +443,22 @@ export default function BaseWalletChecker() {
       )}
 
       {tokenStats && tokenStats.length > 0 && (
-        <section className="mt-8">
-          <div className="flex items-center justify-between gap-3">
+        <section className="mt-10">
+          <div className="flex items-center justify-between gap-6">
             <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
-            <PageControls
-              page={tokenPaged.page}
-              totalPages={tokenPaged.totalPages}
-              onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
-              onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
-            />
-          </div>
-
-          <div className="mt-2 flex items-center justify-end">
-            <PageSizeSelect
-              label="Rows"
-              value={tokenPageSize}
-              onChange={(n) => { setTokenPageSize(n); setTokenPage(1); }}
-            />
+            <div className="flex items-center gap-4">
+              <PageSizeSelect
+                label="Rows"
+                value={tokenPageSize}
+                onChange={(n) => { setTokenPageSize(n); setTokenPage(1); }}
+              />
+              <PageControls
+                page={tokenPaged.page}
+                totalPages={tokenPaged.totalPages}
+                onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
+                onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
+              />
+            </div>
           </div>
 
           <div className="mt-2 text-xs text-gray-400">
@@ -408,7 +467,7 @@ export default function BaseWalletChecker() {
               : "No rows"}
           </div>
 
-          <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
+          <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-gray-800 bg-gray-950">
@@ -471,7 +530,7 @@ function PageControls({
   onNext: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex items-center gap-3 text-sm">
       <button
         onClick={onPrev}
         disabled={page <= 1}
@@ -508,7 +567,7 @@ function PageSizeSelect({
     <label className="text-sm text-gray-300 flex items-center gap-2">
       <span className="text-xs uppercase text-gray-400">{label}</span>
       <select
-        className="rounded-md border border-gray-800 bg-gray-900 px-2 py-1"
+        className="rounded-md border border-gray-800 bg-gray-900 px-2 py-1 outline-none focus:outline-none focus:ring-0"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       >
