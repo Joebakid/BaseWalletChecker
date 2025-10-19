@@ -2,20 +2,26 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+type Theme = "dim" | "dark";
 
+export default function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  // Initialize from localStorage and set the html class
   useEffect(() => {
-    const saved = (localStorage.getItem("theme") as "light" | "dark") || "dark";
+    const saved = (localStorage.getItem("theme") as Theme) || "dark";
     setTheme(saved);
-    document.documentElement.classList.toggle("dark", saved === "dark");
+    document.documentElement.classList.remove("dark", "dim");
+    document.documentElement.classList.add(saved);
   }, []);
 
+  // Toggle between "dark" and "dim"
   const toggle = () => {
-    const next = theme === "dark" ? "light" : "dark";
+    const next: Theme = theme === "dark" ? "dim" : "dark";
     setTheme(next);
     localStorage.setItem("theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
+    document.documentElement.classList.remove("dark", "dim");
+    document.documentElement.classList.add(next);
   };
 
   return (
@@ -24,7 +30,7 @@ export default function ThemeToggle() {
       className="rounded-xl px-3 py-2 border text-sm hover:opacity-80"
       aria-label="Toggle theme"
     >
-      {theme === "dark" ? "Dark" : "Light"}
+      {theme === "dark" ? "Dark" : "Dim"}
     </button>
   );
 }
