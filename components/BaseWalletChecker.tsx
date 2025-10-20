@@ -11,12 +11,12 @@ import { resolveName } from "@/lib/resolve";
 type Tx = {
   hash: string;
   from: string;
-  to: string | null;       // null/"" for contract creation
-  value: string;           // wei (string)
-  timeStamp: string;       // unix seconds (string)
-  isError?: string;        // "1" means failed
-  gasPrice?: string;       // wei (string)
-  gasUsed?: string;        // units (string)
+  to: string | null; // null/"" for contract creation
+  value: string;     // wei (string)
+  timeStamp: string; // unix seconds (string)
+  isError?: string;  // "1" means failed
+  gasPrice?: string; // wei (string)
+  gasUsed?: string;  // units (string)
 };
 
 type TokenTx = {
@@ -26,8 +26,8 @@ type TokenTx = {
   contractAddress: string;
   tokenName: string;
   tokenSymbol: string;
-  tokenDecimal: string;    // e.g. "6", "18"
-  value: string;           // raw integer
+  tokenDecimal: string; // e.g. "6", "18"
+  value: string;        // raw integer
   timeStamp: string;
 };
 
@@ -65,13 +65,10 @@ function paginate<T>(arr: T[], page: number, pageSize: number) {
 // Base mainnet launch: Aug 9, 2023 00:00:00 UTC
 const BASE_MAINNET_LAUNCH = 1691539200;
 
-/** Known bridge contract addresses on Base (L2 senders) — fill with the ones you trust. */
+/** Known bridge contract addresses on Base (fill in the ones you verify). */
 const KNOWN_BRIDGES = new Set<string>([
-  // Examples (VERIFY before uncommenting):
-  // "0x4200000000000000000000000000000000000010", // L2StandardBridge (common on OP-stack L2s)
-  // "0x........", // Across sender on Base
-  // "0x........", // Hop sender on Base
-  // "0x........", // Stargate sender on Base
+  // Example (verify before enabling):
+  // "0x4200000000000000000000000000000000000010", // L2StandardBridge (OP-stack style)
 ]);
 function isBridge(addr?: string | null) {
   if (!addr) return false;
@@ -99,6 +96,8 @@ async function fetchPaged<T>(
 
 export default function BaseWalletChecker() {
   const [addr, setAddr] = useState("");
+  const [resolvedAddr, setResolvedAddr] = useState<string | null>(null); // resolved 0x (if any)
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,80 +114,79 @@ export default function BaseWalletChecker() {
   const [nativePageSize, setNativePageSize] = useState(10);
   const [tokenPageSize, setTokenPageSize] = useState(10);
 
-  const lowerAddr = addr.trim().toLowerCase();
+  // Compare against the resolved 0x address (fallback to raw input until resolved).
+  const lowerAddr = (resolvedAddr || addr).trim().toLowerCase();
 
-  
+  async function fetchAll() {
+    setLoading(true);
+    setError(null);
+    setNativeTxs(null);
+    setTokenTxs(null);
+    setNftTxs(null);
+    setBalanceEth(null);
 
-async function fetchAll() {
-  setLoading(true);
-  setError(null);
-  setNativeTxs(null);
-  setTokenTxs(null);
-  setNftTxs(null);
-  setBalanceEth(null);
+    // reset pagination on new query
+    setNativePage(1);
+    setTokenPage(1);
 
-  // reset pagination on new query
-  setNativePage(1);
-  setTokenPage(1);
+    try {
+      const input = addr.trim();
+      const resolved = await resolveName(input); // ENS / Base resolver
+      const a = resolved || input;
 
-  try {
-    const input = addr.trim();
-    const resolved = await resolveName(input); // ENS / Base resolver
-    const a = resolved || input;
+      if (!isEthAddr(a)) {
+        throw new Error(
+          input.endsWith(".eth") || input.endsWith(".base")
+            ? "Could not resolve that name to an address."
+            : "Enter a valid Base address (0x...) or a .eth / .base name."
+        );
+      }
+      setResolvedAddr(a);
 
-    if (!isEthAddr(a)) {
-      throw new Error(
-        input.endsWith(".eth") || input.endsWith(".base")
-          ? "Could not resolve that name to an address."
-          : "Enter a valid Base address (0x...) or a .eth / .base name."
+      // Always use Base launch as lower bound
+      const since = BASE_MAINNET_LAUNCH;
+
+      // Native transfers (paged)
+      const txsAll = await fetchPaged<Tx>("txlist", a, "desc", 10);
+      const txsInRange = txsAll.filter(
+        (t) => t.isError !== "1" && Number(t.timeStamp) >= since
       );
+
+      // ERC-20 transfers (paged)
+      const toksAll = await fetchPaged<TokenTx>("tokentx", a, "desc", 10);
+      const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
+
+      // NFT transfers (paged)
+      const nftsAll = await fetchPaged<NftTx>("tokennfttx", a, "desc", 10);
+      const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
+
+      // Balance
+      try {
+        const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
+        const balData = await fetchJSON<{ result: string }>(balUrl);
+        const wei = BigInt(balData?.result ?? "0");
+        setBalanceEth(Number(wei) / 1e18);
+      } catch {
+        setBalanceEth(null);
+      }
+
+      // Price (optional)
+      try {
+        const priceData = await fetchJSON<any>(COINGECKO_PRICE);
+        setUsdPrice(priceData?.["base-eth"]?.usd ?? null);
+      } catch {
+        setUsdPrice(null);
+      }
+
+      setNativeTxs(txsInRange);
+      setTokenTxs(toksInRange);
+      setNftTxs(nftsInRange);
+    } catch (e: any) {
+      setError(e?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
     }
-
-    // Always use Base launch as lower bound
-    const since = BASE_MAINNET_LAUNCH;
-
-    // Native transfers (paged)
-    const txsAll = await fetchPaged<Tx>("txlist", a, "desc", 10);
-    const txsInRange = txsAll.filter(
-      (t) => t.isError !== "1" && Number(t.timeStamp) >= since
-    );
-
-    // ERC-20 transfers (paged)
-    const toksAll = await fetchPaged<TokenTx>("tokentx", a, "desc", 10);
-    const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
-
-    // NFT transfers (paged)
-    const nftsAll = await fetchPaged<NftTx>("tokennfttx", a, "desc", 10);
-    const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
-
-    // Balance
-    try {
-      const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
-      const balData = await fetchJSON<{ result: string }>(balUrl);
-      const wei = BigInt(balData?.result ?? "0");
-      setBalanceEth(Number(wei) / 1e18);
-    } catch {
-      setBalanceEth(null);
-    }
-
-    // Price (optional)
-    try {
-      const priceData = await fetchJSON<any>(COINGECKO_PRICE);
-      setUsdPrice(priceData?.["base-eth"]?.usd ?? null);
-    } catch {
-      setUsdPrice(null);
-    }
-
-    setNativeTxs(txsInRange);
-    setTokenTxs(toksInRange);
-    setNftTxs(nftsInRange);
-  } catch (e: any) {
-    setError(e?.message || "Something went wrong");
-  } finally {
-    setLoading(false);
   }
-}
-
 
   // ---------- Aggregations ----------
   const nativeStats = useMemo(() => {
@@ -322,14 +320,14 @@ async function fetchAll() {
     const txCount = totalBaseTxs;
 
     // Normalize each factor to [0,1] against tougher targets
-    const txScore       = Math.min(txCount / 100, 1);                    // needs ~100 total txs to cap
-    const tokenScore    = Math.min((tokenTxs?.length || 0) / 80, 1);     // ~80 ERC-20 transfers
-    const volScore      = Math.min((nativeVolumeUsd || 0) / 5000, 1);    // ~$5k native volume
-    const peersScore    = Math.min(peerSet.size / 50, 1);                // 50 unique peers
-    const cadenceScore  = Math.min(daysActive / 40, 1);                  // active on 40 days
-    const balanceScore  = Math.min((balanceUsd || 0) / 1000, 1);         // ~$1k current balance
+    const txScore      = Math.min(txCount / 100, 1);                 // ~100 total txs
+    const tokenScore   = Math.min((tokenTxs?.length || 0) / 80, 1);  // ~80 ERC-20 transfers
+    const volScore     = Math.min((nativeVolumeUsd || 0) / 5000, 1); // ~$5k native volume
+    const peersScore   = Math.min(peerSet.size / 50, 1);             // 50 unique peers
+    const cadenceScore = Math.min(daysActive / 40, 1);               // 40 active days
+    const balanceScore = Math.min((balanceUsd || 0) / 1000, 1);      // ~$1k balance
 
-    // Heavier weight on (volume + balance), still rewarding activity spread
+    // Heavier weight on (volume + balance)
     const wTx = 0.20, wTok = 0.10, wVol = 0.25, wPeers = 0.15, wCad = 0.10, wBal = 0.20;
     const score =
       wTx * txScore +
@@ -340,14 +338,7 @@ async function fetchAll() {
       wBal * balanceScore;
 
     return Math.round(score * 100);
-  }, [
-    totalBaseTxs,
-    tokenTxs,
-    nativeVolumeUsd,
-    peerSet.size,
-    daysActive,
-    balanceUsd,
-  ]);
+  }, [totalBaseTxs, tokenTxs, nativeVolumeUsd, peerSet.size, daysActive, balanceUsd]);
 
   // -------- Paginators (derived) --------
   const nativePaged = useMemo(() => {
@@ -364,6 +355,7 @@ async function fetchAll() {
     return paginate(tokenStats, tokenPage, tokenPageSize);
   }, [tokenStats, tokenPage, tokenPageSize]);
 
+  // ----- UI -----
   return (
     <>
       {/* Loader Overlay */}
@@ -386,7 +378,19 @@ async function fetchAll() {
               placeholder="Enter 0x..., ENS (.eth), or Base name (.base)"
               value={addr}
               onChange={(e) => setAddr(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading) {
+                  e.preventDefault();
+                  fetchAll();
+                }
+              }}
             />
+            {/* Resolved preview */}
+            {resolvedAddr && resolvedAddr.toLowerCase() !== addr.trim().toLowerCase() && (
+              <div className="mt-1 text-xs text-gray-400">
+                Resolved: <span className="text-gray-200">{resolvedAddr}</span>
+              </div>
+            )}
           </label>
 
           <button
@@ -453,11 +457,7 @@ async function fetchAll() {
                 value={balanceEth != null ? `${fmt(balanceEth)} ETH` : "—"}
                 sub={balanceUsd != null ? `$${fmt(balanceUsd)}` : undefined}
               />
-              <Stat
-                label="Stake / Liquidity"
-                value="—"
-                sub="Needs protocol maps"
-              />
+              <Stat label="Stake / Liquidity" value="—" sub="Needs protocol maps" />
             </div>
 
             {/* Optional: compact bridged tokens list */}
@@ -674,13 +674,13 @@ async function fetchAll() {
               </table>
             </div>
 
-            {/* Optional bridged ERC-20 list can also be shown here if you prefer */}
+            {/* Optional bridged ERC-20 list could be displayed here instead of Overview */}
           </section>
         )}
 
         {!loading && !error && !nativeStats && (
           <p className="mt-8 text-sm text-gray-300">
-            Enter an address and click <b>Check</b> to see recent activity.
+            Enter an address and press <b>Enter</b> or click <b>Check</b> to see recent activity.
           </p>
         )}
       </section>
