@@ -1,36 +1,51 @@
 // components/ThemeToggle.tsx
 "use client";
+
 import { useEffect, useState } from "react";
 
-type Theme = "dim" | "dark";
+type Theme = "dark" | "dim" | "light";
+const STORAGE_KEY = "theme";
+const ALL_CLASSES: Theme[] = ["dark", "dim", "light"];
+
+function applyThemeClass(t: Theme) {
+  const el = document.documentElement;
+  el.classList.remove(...ALL_CLASSES);
+  el.classList.add(t);
+}
+
+function nextTheme(t: Theme): Theme {
+  if (t === "dark") return "dim";
+  if (t === "dim") return "light";
+  return "dark";
+}
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("dark");
 
-  // Initialize from localStorage and set the html class
   useEffect(() => {
-    const saved = (localStorage.getItem("theme") as Theme) || "dark";
+    const saved = (localStorage.getItem(STORAGE_KEY) as Theme) || "dark";
     setTheme(saved);
-    document.documentElement.classList.remove("dark", "dim");
-    document.documentElement.classList.add(saved);
+    applyThemeClass(saved);
   }, []);
 
-  // Toggle between "dark" and "dim"
-  const toggle = () => {
-    const next: Theme = theme === "dark" ? "dim" : "dark";
-    setTheme(next);
-    localStorage.setItem("theme", next);
-    document.documentElement.classList.remove("dark", "dim");
-    document.documentElement.classList.add(next);
+  const handleToggle = () => {
+    const t = nextTheme(theme);
+    setTheme(t);
+    localStorage.setItem(STORAGE_KEY, t);
+    applyThemeClass(t);
   };
+
+  // Label shows current mode
+  const label = theme === "dark" ? "Dark" : theme === "dim" ? "Dim" : "Light";
 
   return (
     <button
-      onClick={toggle}
+      onClick={handleToggle}
       className="rounded-xl px-3 py-2 border text-sm hover:opacity-80"
       aria-label="Toggle theme"
+      title="Cycle theme (Dark → Dim → Light)"
     >
-      {theme === "dark" ? "Dark" : "Dim"}
+      {label}
     </button>
   );
 }
