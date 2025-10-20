@@ -64,6 +64,19 @@ function paginate<T>(arr: T[], page: number, pageSize: number) {
 // Base mainnet launch: Aug 9, 2023 00:00:00 UTC
 const BASE_MAINNET_LAUNCH = 1691539200;
 
+/** Known bridge contract addresses on Base (L2 senders) — fill with the ones you trust. */
+const KNOWN_BRIDGES = new Set<string>([
+  // Examples (VERIFY before uncommenting):
+  // "0x4200000000000000000000000000000000000010", // L2StandardBridge (common on OP-stack L2s)
+  // "0x........", // Across sender on Base
+  // "0x........", // Hop sender on Base
+  // "0x........", // Stargate sender on Base
+]);
+function isBridge(addr?: string | null) {
+  if (!addr) return false;
+  return KNOWN_BRIDGES.has(addr.toLowerCase());
+}
+
 /** Fetch all pages from Blockscout for a given "action" */
 async function fetchPaged<T>(
   action: string,
@@ -260,39 +273,68 @@ export default function BaseWalletChecker() {
     return ds.size;
   }, [nativeTxs, tokenTxs, nftTxs]);
 
-  // Rough airdrop score (%)
+  // ---- Bridged-in metrics (ETH + ERC20) ----
+  const bridgedInEth = useMemo(() => {
+    if (!nativeTxs) return 0;
+    let sum = 0;
+    for (const t of nativeTxs) {
+      const incoming = t.to && t.to.toLowerCase() === lowerAddr;
+      if (incoming && isBridge(t.from)) {
+        sum += weiToEth(t.value);
+      }
+    }
+    return sum;
+  }, [nativeTxs, lowerAddr]);
+
+  type BridgedToken = { contract: string; symbol: string; name: string; amount: number };
+  const bridgedInTokens = useMemo<BridgedToken[]>(() => {
+    if (!tokenTxs) return [];
+    const map = new Map<string, BridgedToken>();
+    for (const t of tokenTxs) {
+      const incoming = t.to?.toLowerCase() === lowerAddr;
+      if (!(incoming && isBridge(t.from))) continue;
+      const dec = Number(t.tokenDecimal || 18);
+      const amt = Number(t.value) / 10 ** dec;
+      const key = t.contractAddress.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { contract: key, symbol: t.tokenSymbol, name: t.tokenName, amount: 0 });
+      }
+      map.get(key)!.amount += amt;
+    }
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  }, [tokenTxs, lowerAddr]);
+
   // Rough airdrop score (%) — stricter and includes balance
-const airdropPercent = useMemo(() => {
-  const txCount = totalBaseTxs;
+  const airdropPercent = useMemo(() => {
+    const txCount = totalBaseTxs;
 
-  // Normalize each factor to [0,1] against tougher targets
-  const txScore       = Math.min(txCount / 100, 1);                    // needs ~100 total txs to cap
-  const tokenScore    = Math.min((tokenTxs?.length || 0) / 80, 1);     // needs ~80 ERC-20 transfers
-  const volScore      = Math.min((nativeVolumeUsd || 0) / 5000, 1);    // ~$5k native volume
-  const peersScore    = Math.min(peerSet.size / 50, 1);                // 50 unique peers
-  const cadenceScore  = Math.min(daysActive / 40, 1);                  // active on 40 distinct days
-  const balanceScore  = Math.min((balanceUsd || 0) / 1000, 1);         // ~$1k current balance
+    // Normalize each factor to [0,1] against tougher targets
+    const txScore       = Math.min(txCount / 100, 1);                    // needs ~100 total txs to cap
+    const tokenScore    = Math.min((tokenTxs?.length || 0) / 80, 1);     // ~80 ERC-20 transfers
+    const volScore      = Math.min((nativeVolumeUsd || 0) / 5000, 1);    // ~$5k native volume
+    const peersScore    = Math.min(peerSet.size / 50, 1);                // 50 unique peers
+    const cadenceScore  = Math.min(daysActive / 40, 1);                  // active on 40 days
+    const balanceScore  = Math.min((balanceUsd || 0) / 1000, 1);         // ~$1k current balance
 
-  // Heavier weight on (volume + balance), still rewarding activity spread
-  const wTx = 0.20, wTok = 0.10, wVol = 0.25, wPeers = 0.15, wCad = 0.10, wBal = 0.20;
-  const score =
-    wTx * txScore +
-    wTok * tokenScore +
-    wVol * volScore +
-    wPeers * peersScore +
-    wCad * cadenceScore +
-    wBal * balanceScore;
+    // Heavier weight on (volume + balance), still rewarding activity spread
+    const wTx = 0.20, wTok = 0.10, wVol = 0.25, wPeers = 0.15, wCad = 0.10, wBal = 0.20;
+    const score =
+      wTx * txScore +
+      wTok * tokenScore +
+      wVol * volScore +
+      wPeers * peersScore +
+      wCad * cadenceScore +
+      wBal * balanceScore;
 
-  return Math.round(score * 100);
-}, [
-  totalBaseTxs,
-  tokenTxs,
-  nativeVolumeUsd,
-  peerSet.size,
-  daysActive,
-  balanceUsd,
-]);
-
+    return Math.round(score * 100);
+  }, [
+    totalBaseTxs,
+    tokenTxs,
+    nativeVolumeUsd,
+    peerSet.size,
+    daysActive,
+    balanceUsd,
+  ]);
 
   // -------- Paginators (derived) --------
   const nativePaged = useMemo(() => {
@@ -357,12 +399,13 @@ const airdropPercent = useMemo(() => {
 
         {(nativeStats || tokenStats) && (
           <section className="mt-6">
-            <h2 className="text-lg font-semibold">Overview</h2>
-             <InfoNote />
-            
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">Overview</h2>
+              <InfoNote />
+            </div>
 
-            {/* Stat groups: single column on small screens */}
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Stat groups */}
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
               <Stat label="Total Base txs" value={totalBaseTxs} />
               <Stat
                 label="Native volume"
@@ -371,6 +414,11 @@ const airdropPercent = useMemo(() => {
               />
               <Stat label="Unique peers" value={peerSet.size} />
               <Stat label="Days active" value={daysActive} />
+              <Stat
+                label="Bridged in (ETH)"
+                value={`${fmt(bridgedInEth)} ETH`}
+                sub={usdPrice ? `$${fmt((bridgedInEth || 0) * usdPrice)}` : undefined}
+              />
             </div>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -398,6 +446,23 @@ const airdropPercent = useMemo(() => {
                 sub="Needs protocol maps"
               />
             </div>
+
+            {/* Optional: compact bridged tokens list */}
+            {bridgedInTokens.length > 0 && (
+              <div className="mt-3 text-xs text-gray-300">
+                <div className="font-medium mb-1">Bridged in (ERC-20):</div>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {bridgedInTokens.slice(0, 6).map((t) => (
+                    <li key={t.contract}>
+                      {t.symbol} <span className="text-gray-400">({t.name})</span>: {fmt(t.amount)}
+                    </li>
+                  ))}
+                  {bridgedInTokens.length > 6 && (
+                    <li className="text-gray-400">+{bridgedInTokens.length - 6} more</li>
+                  )}
+                </ul>
+              </div>
+            )}
           </section>
         )}
 
@@ -445,70 +510,69 @@ const airdropPercent = useMemo(() => {
                 : "No rows"}
             </div>
 
-          <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
-  <table className="min-w-[900px] text-sm"> 
-    <thead>
-      <tr className="text-left border-b border-gray-800 bg-gray-950">
-        <th className="py-2 pr-3">Time (UTC)</th>
-        <th className="py-2 pr-3">Dir</th>
-        <th className="py-2 pr-3">Amount</th>
-        <th className="py-2 pr-3">Hash</th> {/* removed hidden md:table-cell */}
-      </tr>
-    </thead>
-    <tbody>
-      {nativePaged.slice.map((t) => {
-        const isIn = t.to && t.to.toLowerCase() === lowerAddr;
-        const vEth = weiToEth(t.value);
-        const signed = `${isIn ? "+" : "−"}${fmt(vEth)} ETH`;
+            <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
+              <table className="min-w-[900px] text-sm">
+                <thead>
+                  <tr className="text-left border-b border-gray-800 bg-gray-950">
+                    <th className="py-2 pr-3">Time (UTC)</th>
+                    <th className="py-2 pr-3">Dir</th>
+                    <th className="py-2 pr-3">Amount</th>
+                    <th className="py-2 pr-3">Hash</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nativePaged.slice.map((t) => {
+                    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
+                    const vEth = weiToEth(t.value);
+                    const signed = `${isIn ? "+" : "−"}${fmt(vEth)} ETH`;
 
-        return (
-          <tr key={t.hash} className="border-b border-gray-900">
-            <td className="py-2 pr-3 whitespace-nowrap">
-              {new Date(Number(t.timeStamp) * 1000).toUTCString()}
-            </td>
+                    return (
+                      <tr key={t.hash} className="border-b border-gray-900">
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          {new Date(Number(t.timeStamp) * 1000).toUTCString()}
+                        </td>
 
-            {/* direction pill */}
-            <td className="py-2 pr-3">
-              <span
-                className={
-                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
-                  (isIn
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
-                    : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
-                }
-              >
-                {isIn ? "IN" : "OUT"}
-              </span>
-            </td>
+                        {/* direction pill */}
+                        <td className="py-2 pr-3">
+                          <span
+                            className={
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
+                              (isIn
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
+                                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
+                            }
+                          >
+                            {isIn ? "IN" : "OUT"}
+                          </span>
+                        </td>
 
-            {/* amount with +/- */}
-            <td
-              className={
-                "py-2 pr-3 whitespace-nowrap font-medium " +
-                (isIn ? "text-emerald-400" : "text-rose-400")
-              }
-            >
-              {signed}
-            </td>
+                        {/* amount with +/- */}
+                        <td
+                          className={
+                            "py-2 pr-3 whitespace-nowrap font-medium " +
+                            (isIn ? "text-emerald-400" : "text-rose-400")
+                          }
+                        >
+                          {signed}
+                        </td>
 
-            {/* hash full + scrollable */}
-            <td className="py-2 pr-3 whitespace-nowrap">
-              <a
-                className="underline text-xs break-all"
-                href={`https://base.blockscout.com/tx/${t.hash}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t.hash}
-              </a>
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-</div>
-
+                        {/* hash full + scrollable */}
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          <a
+                            className="underline text-xs break-all"
+                            href={`https://base.blockscout.com/tx/${t.hash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t.hash}
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
@@ -538,65 +602,66 @@ const airdropPercent = useMemo(() => {
                 : "No rows"}
             </div>
 
-          <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
-  <table className="min-w-full text-sm table-fixed">
-    <thead>
-      <tr className="text-left border-b border-gray-800 bg-gray-950">
-        <th className="py-2 pr-3">Token</th>
-        <th className="py-2 pr-3">In</th>
-        <th className="py-2 pr-3">Out</th>
-        <th className="py-2 pr-3">Balance</th>
-        <th className="py-2 pr-3">Transfers</th>
-        <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
-      </tr>
-    </thead>
-    <tbody>
-      {tokenPaged.slice.map((row) => {
-        const balance = row.in - row.out; // ✅ net balance
-        return (
-          <tr key={row.contract} className="border-b border-gray-900">
-            <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
-              {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
-            </td>
+            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
+              <table className="min-w-full text-sm table-fixed">
+                <thead>
+                  <tr className="text-left border-b border-gray-800 bg-gray-950">
+                    <th className="py-2 pr-3">Token</th>
+                    <th className="py-2 pr-3">In</th>
+                    <th className="py-2 pr-3">Out</th>
+                    <th className="py-2 pr-3">Balance</th>
+                    <th className="py-2 pr-3">Transfers</th>
+                    <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tokenPaged.slice.map((row) => {
+                    const balance = row.in - row.out; // net balance
+                    return (
+                      <tr key={row.contract} className="border-b border-gray-900">
+                        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
+                          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
+                        </td>
 
-            {/* colored In */}
-            <td className="py-2 pr-3 text-right whitespace-nowrap">
-              <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
-            </td>
+                        {/* colored In */}
+                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
+                        </td>
 
-            {/* colored Out */}
-            <td className="py-2 pr-3 text-right whitespace-nowrap">
-              <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
-            </td>
+                        {/* colored Out */}
+                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
+                        </td>
 
-            {/* net balance */}
-            <td
-              className={
-                "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
-                (balance >= 0 ? "text-emerald-400" : "text-rose-400")
-              }
-            >
-              {fmt(balance)}
-            </td>
+                        {/* net balance */}
+                        <td
+                          className={
+                            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
+                            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
+                          }
+                        >
+                          {fmt(balance)}
+                        </td>
 
-            <td className="py-2 pr-3">{row.count}</td>
-            <td className="py-2 pr-3 hidden md:table-cell">
-              <a
-                className="underline break-all text-xs"
-                href={`https://base.blockscout.com/address/${row.contract}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {row.contract.slice(0, 10)}…
-              </a>
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-</div>
+                        <td className="py-2 pr-3">{row.count}</td>
+                        <td className="py-2 pr-3 hidden md:table-cell">
+                          <a
+                            className="underline break-all text-xs"
+                            href={`https://base.blockscout.com/address/${row.contract}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {row.contract.slice(0, 10)}…
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
+            {/* Optional bridged ERC-20 list can also be shown here if you prefer */}
           </section>
         )}
 
