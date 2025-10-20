@@ -422,67 +422,70 @@ export default function BaseWalletChecker() {
                 : "No rows"}
             </div>
 
-            <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
-              <table className="min-w-full text-sm table-fixed">
-                <thead>
-                  <tr className="text-left border-b border-gray-800 bg-gray-950">
-                    <th className="py-2 pr-3">Time (UTC)</th>
-                    <th className="py-2 pr-3">Dir</th>
-                    <th className="py-2 pr-3">Amount</th>
-                    <th className="py-2 pr-3 hidden md:table-cell">Hash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {nativePaged.slice.map((t) => {
-                    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
-                    const vEth = weiToEth(t.value);
-                    const signed = `${isIn ? "+" : "−"}${fmt(vEth)} ETH`;
-                    return (
-                      <tr key={t.hash} className="border-b border-gray-900">
-                        <td className="py-2 pr-3">{new Date(Number(t.timeStamp) * 1000).toUTCString()}</td>
+          <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
+  <table className="min-w-[900px] text-sm"> 
+    <thead>
+      <tr className="text-left border-b border-gray-800 bg-gray-950">
+        <th className="py-2 pr-3">Time (UTC)</th>
+        <th className="py-2 pr-3">Dir</th>
+        <th className="py-2 pr-3">Amount</th>
+        <th className="py-2 pr-3">Hash</th> {/* removed hidden md:table-cell */}
+      </tr>
+    </thead>
+    <tbody>
+      {nativePaged.slice.map((t) => {
+        const isIn = t.to && t.to.toLowerCase() === lowerAddr;
+        const vEth = weiToEth(t.value);
+        const signed = `${isIn ? "+" : "−"}${fmt(vEth)} ETH`;
 
-                        {/* colored direction pill */}
-                        <td className="py-2 pr-3">
-                          <span
-                            className={
-                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
-                              (isIn
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
-                                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
-                            }
-                            aria-label={isIn ? "Incoming" : "Outgoing"}
-                            title={isIn ? "Incoming" : "Outgoing"}
-                          >
-                            {isIn ? "IN" : "OUT"}
-                          </span>
-                        </td>
+        return (
+          <tr key={t.hash} className="border-b border-gray-900">
+            <td className="py-2 pr-3 whitespace-nowrap">
+              {new Date(Number(t.timeStamp) * 1000).toUTCString()}
+            </td>
 
-                        {/* colored amount with +/- */}
-                        <td
-                          className={
-                            "py-2 pr-3 whitespace-nowrap font-medium " +
-                            (isIn ? "text-emerald-400" : "text-rose-400")
-                          }
-                        >
-                          {signed}
-                        </td>
+            {/* direction pill */}
+            <td className="py-2 pr-3">
+              <span
+                className={
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
+                  (isIn
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
+                    : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
+                }
+              >
+                {isIn ? "IN" : "OUT"}
+              </span>
+            </td>
 
-                        <td className="py-2 pr-3 hidden md:table-cell">
-                          <a
-                            className="underline break-all text-xs"
-                            href={`https://base.blockscout.com/tx/${t.hash}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {t.hash.slice(0, 10)}…
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {/* amount with +/- */}
+            <td
+              className={
+                "py-2 pr-3 whitespace-nowrap font-medium " +
+                (isIn ? "text-emerald-400" : "text-rose-400")
+              }
+            >
+              {signed}
+            </td>
+
+            {/* hash full + scrollable */}
+            <td className="py-2 pr-3 whitespace-nowrap">
+              <a
+                className="underline text-xs break-all"
+                href={`https://base.blockscout.com/tx/${t.hash}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t.hash}
+              </a>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+
           </section>
         )}
 
