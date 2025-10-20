@@ -410,7 +410,7 @@ export default function BaseWalletChecker() {
         {resolvedAddr &&
         resolvedAddr.toLowerCase() !== addr.trim().toLowerCase() && (
           <div className="mt-1 text-xs text-gray-400">
-            Resolved:{" "}
+            Address:{" "}
             <span className="text-gray-200 break-all">{resolvedAddr}</span>
           </div>
         )}
