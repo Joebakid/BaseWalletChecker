@@ -6,6 +6,7 @@ import Stat from "@/components/Stat";
 import { BASE_BLOCKSCOUT, COINGECKO_PRICE, fetchJSON } from "@/lib/api";
 import { fmt, isEthAddr, weiToEth } from "@/lib/utils";
 import InfoNote from "./InfoNote";
+import { resolveName } from "@/lib/resolve";
 
 type Tx = {
   hash: string;
@@ -116,66 +117,78 @@ export default function BaseWalletChecker() {
 
   const lowerAddr = addr.trim().toLowerCase();
 
-  async function fetchAll() {
-    setLoading(true);
-    setError(null);
-    setNativeTxs(null);
-    setTokenTxs(null);
-    setNftTxs(null);
-    setBalanceEth(null);
+  
 
-    // reset pagination on new query
-    setNativePage(1);
-    setTokenPage(1);
+async function fetchAll() {
+  setLoading(true);
+  setError(null);
+  setNativeTxs(null);
+  setTokenTxs(null);
+  setNftTxs(null);
+  setBalanceEth(null);
 
-    try {
-      const a = addr.trim();
-      if (!isEthAddr(a)) throw new Error("Enter a valid Base address (0x...)");
+  // reset pagination on new query
+  setNativePage(1);
+  setTokenPage(1);
 
-      // Always use Base launch as lower bound
-      const since = BASE_MAINNET_LAUNCH;
+  try {
+    const input = addr.trim();
+    const resolved = await resolveName(input); // ENS / Base resolver
+    const a = resolved || input;
 
-      // Native transfers (paged)
-      const txsAll = await fetchPaged<Tx>("txlist", a, "desc", 10);
-      const txsInRange = txsAll.filter(
-        (t) => t.isError !== "1" && Number(t.timeStamp) >= since
+    if (!isEthAddr(a)) {
+      throw new Error(
+        input.endsWith(".eth") || input.endsWith(".base")
+          ? "Could not resolve that name to an address."
+          : "Enter a valid Base address (0x...) or a .eth / .base name."
       );
-
-      // ERC-20 transfers (paged)
-      const toksAll = await fetchPaged<TokenTx>("tokentx", a, "desc", 10);
-      const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
-
-      // NFT transfers (paged)
-      const nftsAll = await fetchPaged<NftTx>("tokennfttx", a, "desc", 10);
-      const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
-
-      // Balance
-      try {
-        const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
-        const balData = await fetchJSON<{ result: string }>(balUrl);
-        const wei = BigInt(balData?.result ?? "0");
-        setBalanceEth(Number(wei) / 1e18);
-      } catch {
-        setBalanceEth(null);
-      }
-
-      // Price (optional)
-      try {
-        const priceData = await fetchJSON<any>(COINGECKO_PRICE);
-        setUsdPrice(priceData?.["base-eth"]?.usd ?? null);
-      } catch {
-        setUsdPrice(null);
-      }
-
-      setNativeTxs(txsInRange);
-      setTokenTxs(toksInRange);
-      setNftTxs(nftsInRange);
-    } catch (e: any) {
-      setError(e?.message || "Something went wrong");
-    } finally {
-      setLoading(false);
     }
+
+    // Always use Base launch as lower bound
+    const since = BASE_MAINNET_LAUNCH;
+
+    // Native transfers (paged)
+    const txsAll = await fetchPaged<Tx>("txlist", a, "desc", 10);
+    const txsInRange = txsAll.filter(
+      (t) => t.isError !== "1" && Number(t.timeStamp) >= since
+    );
+
+    // ERC-20 transfers (paged)
+    const toksAll = await fetchPaged<TokenTx>("tokentx", a, "desc", 10);
+    const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
+
+    // NFT transfers (paged)
+    const nftsAll = await fetchPaged<NftTx>("tokennfttx", a, "desc", 10);
+    const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
+
+    // Balance
+    try {
+      const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
+      const balData = await fetchJSON<{ result: string }>(balUrl);
+      const wei = BigInt(balData?.result ?? "0");
+      setBalanceEth(Number(wei) / 1e18);
+    } catch {
+      setBalanceEth(null);
+    }
+
+    // Price (optional)
+    try {
+      const priceData = await fetchJSON<any>(COINGECKO_PRICE);
+      setUsdPrice(priceData?.["base-eth"]?.usd ?? null);
+    } catch {
+      setUsdPrice(null);
+    }
+
+    setNativeTxs(txsInRange);
+    setTokenTxs(toksInRange);
+    setNftTxs(nftsInRange);
+  } catch (e: any) {
+    setError(e?.message || "Something went wrong");
+  } finally {
+    setLoading(false);
   }
+}
+
 
   // ---------- Aggregations ----------
   const nativeStats = useMemo(() => {
@@ -370,7 +383,7 @@ export default function BaseWalletChecker() {
             <span className="text-xs uppercase text-gray-400">Address</span>
             <input
               className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:outline-none focus:ring-0"
-              placeholder="0x..."
+              placeholder="Enter 0x..., ENS (.eth), or Base name (.base)"
               value={addr}
               onChange={(e) => setAddr(e.target.value)}
             />
