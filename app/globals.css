@@ -1,120 +1,75 @@
-/* app/globals.css */
+/* globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure full-height for sticky overlays etc. */
 html, body { height: 100%; }
 
-/* Let browsers know both schemes are supported */
+/* We drive colors ONLY through CSS variables below */
 :root { color-scheme: light dark; }
 
-/* ------------------------------
-   Base tokens (Light by default)
-   ------------------------------ */
+/* ---------- THEME TOKENS (single source of truth) ---------- */
 @layer base {
   :root {
+    /* Light */
     --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
+    --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 9%;
-    --radius: 0.5rem;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+    --muted-foreground: 215 20.2% 41.9%;
   }
 
-  /* ⚫ Dark tokens (extreme black) */
+  /* Full black page in DARK */
   .dark {
-    --background: 0 0% 0%;          /* pure black */
-    --foreground: 0 0% 98%;
-    --card: 0 0% 0%;                /* pure black cards */
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 0%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 7%;           /* almost black */
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 7%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 7%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;             /* subtle gray lines */
-    --input: 0 0% 15%;
-    --ring: 0 0% 90%;
-  }
-
-  /* Dim tokens (mid-contrast between light and dark) */
-  .dim {
-    --background: 222 47% 10%;    /* slate-900-ish */
+    --background: 0 0% 0%;         /* PURE BLACK page */
     --foreground: 210 40% 98%;
-    --card: 222 47% 12%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 12%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 210 40% 96%;
-    --primary-foreground: 222 47% 12%;
-    --secondary: 222 27% 18%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 222 27% 18%;
-    --muted-foreground: 215 20% 72%;
-    --accent: 222 27% 18%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 62% 40%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 222 27% 24%;
-    --input: 222 27% 24%;
-    --ring: 210 40% 96%;
+    --card: 0 0% 5%;               /* near-black cards */
+    --card-foreground: 210 40% 98%;
+    --border: 220 6% 20%;
+    --muted-foreground: 215 20% 65%;
   }
 
-  /* Apply tokens */
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  /* Deep navy page in DIM */
+  .dim {
+    --background: 222 27% 14%;     /* deep navy page */
+    --foreground: 210 40% 96%;
+    --card: 222 27% 16%;           /* slightly lighter than page */
+    --card-foreground: 210 40% 96%;
+    --border: 222 25% 30%;
+    --muted-foreground: 215 20% 70%;
+  }
 
-  /* Improve native controls according to theme */
-  .dark { color-scheme: dark; }
-  .dim  { color-scheme: dark; }
-  .light { color-scheme: light; }
+  /* Apply tokens globally */
+  * { @apply border-[hsl(var(--border))]; }
+  body {
+    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
+  }
 }
 
-/* --------------------------------------
-   Class remaps so existing components work
-   -------------------------------------- */
+/* ---------- COMPONENT-SAFETY OVERRIDES ----------
+   Your components use some fixed classes like bg-black/text-white.
+   These keep them readable in all themes without refactoring JSX.
+-------------------------------------------------- */
 
-/* LIGHT overrides */
-.light .bg-black   { background-color: #ffffff !important; }
-.light .bg-gray-900{ background-color: #f8fafc !important; }
-.light .bg-gray-950{ background-color: #eef2f7 !important; }
+/* LIGHT: ensure readable text + light cards/inputs */
+.light .text-white,
+.light .text-gray-100 { color: #0b0f19 !important; }
+.light .bg-black      { background-color: #ffffff !important; }
+.light .bg-gray-900   { background-color: #f8fafc !important; }
+.light .bg-gray-950   { background-color: #eef2f7 !important; }
 .light .border-gray-800,
 .light .border-gray-900 { border-color: #e5e7eb !important; }
-.light .text-gray-100 { color: #0b0f19 !important; }
-.light .text-gray-300 { color: #111827 !important; }
-.light .text-gray-400 { color: #374151 !important; }
 
-/* DIM overrides */
-.dim .bg-black   { background-color: #0f172a !important; }
-.dim .bg-gray-900{ background-color: #111827 !important; }
-.dim .bg-gray-950{ background-color: #0b1220 !important; }
-.dim .border-gray-800{ border-color: #1f2937 !important; }
+/* DIM: make “black” surfaces navy so page+cards match */
+.dim .bg-black    { background-color: #0f172a !important; } /* slate-900 feel */
+.dim .bg-gray-900 { background-color: #0b1220 !important; }
+.dim .bg-gray-950 { background-color: #0b1324 !important; }
+.dim .text-gray-300 { color: #d1d5db !important; }
+.dim .text-gray-400 { color: #94a3b8 !important; }
 
-/* DARK overrides (OLED black) */
-.dark .bg-black   { background-color: #000000 !important; }
-.dark .bg-gray-900{ background-color: #000000 !important; }
-.dark .bg-gray-950{ background-color: #000000 !important; }
-.dark .border-gray-800,
-.dark .border-gray-900 { border-color: #1a1a1a !important; }
+/* Tables/borders feel right per theme */
+.dark table thead tr { border-color: hsl(var(--border)) !important; }
+.dark table tbody tr { border-color: hsl(var(--border)) !important; }
+.dim  table thead tr { border-color: hsl(var(--border)) !important; }
+.dim  table tbody tr { border-color: hsl(var(--border)) !important; }

@@ -1,13 +1,11 @@
 // app/layout.tsx
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import ThemeProvider from "@/providers/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: {
-    default: "Base Wallet Checker",
-    template: "%s • Base Wallet Checker",
-  },
+  title: { default: "Base Wallet Checker", template: "%s • Base Wallet Checker" },
   description:
     "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
   metadataBase: new URL("https://base-walletchecker.vercel.app/"),
@@ -26,11 +24,7 @@ export const metadata: Metadata = {
     description: "Analyze Base wallet activity with clean stats pulled from Blockscout.",
     images: ["/og.png"],
   },
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
+  icons: { icon: "/favicon.ico", shortcut: "/favicon.ico", apple: "/apple-touch-icon.png" },
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
@@ -40,7 +34,22 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* Don't force dark here—let .dark/.dim/.light control it */}
+      <head>
+        {/* Pre-apply theme class before paint; default to 'dim' if nothing saved */}
+        <Script id="apply-theme" strategy="beforeInteractive">
+          {`
+            (function () {
+              try {
+                var t = localStorage.getItem('theme') || 'dim';
+                var el = document.documentElement;
+                el.classList.remove('light','dim','dark');
+                el.classList.add(t);
+              } catch (e) {}
+            })();
+          `}
+        </Script>
+      </head>
+      {/* do NOT hard-force dark colors here; let themes control it */}
       <body className="min-h-screen antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>

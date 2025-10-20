@@ -1,51 +1,44 @@
 // components/ThemeProvider.tsx
 "use client";
-
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-type Theme = "dark" | "dim" | "light";
+type Theme = "light" | "dim" | "dark";
 type Ctx = { theme: Theme; toggle: () => void; setTheme: (t: Theme) => void };
 
 const STORAGE_KEY = "theme";
-const ALL_CLASSES: Theme[] = ["dark", "dim", "light"];
+const ALL: Theme[] = ["light", "dim", "dark"];
 const ThemeCtx = createContext<Ctx | null>(null);
 
-function applyThemeClass(t: Theme) {
+function apply(t: Theme) {
   const el = document.documentElement;
-  el.classList.remove(...ALL_CLASSES);
-  // Add the selected theme class explicitly (including "light")
+  el.classList.remove(...ALL);
   el.classList.add(t);
 }
-
-function nextTheme(t: Theme): Theme {
-  if (t === "dark") return "dim";
-  if (t === "dim") return "light";
+function next(t: Theme): Theme {
+  if (t === "dark") return "light";
+  if (t === "light") return "dim";
   return "dark";
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark"); // SSR-safe default
+export default function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>("dim"); // SSR-safe default
 
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as Theme) || "dark";
+    const saved = (localStorage.getItem(STORAGE_KEY) as Theme) || "dim";
     setThemeState(saved);
-    applyThemeClass(saved);
+    apply(saved);
   }, []);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
     localStorage.setItem(STORAGE_KEY, t);
-    applyThemeClass(t);
+    apply(t);
   };
-
-  const toggle = () => setTheme(nextTheme(theme));
-
+  const toggle = () => setTheme(next(theme));
   const value = useMemo(() => ({ theme, toggle, setTheme }), [theme]);
+
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }
-
-// Optional default export (matches many imports like "@/providers/ThemeProvider")
-export default ThemeProvider;
 
 export function useTheme() {
   const ctx = useContext(ThemeCtx);
