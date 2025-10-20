@@ -436,11 +436,37 @@ export default function BaseWalletChecker() {
                   {nativePaged.slice.map((t) => {
                     const isIn = t.to && t.to.toLowerCase() === lowerAddr;
                     const vEth = weiToEth(t.value);
+                    const signed = `${isIn ? "+" : "−"}${fmt(vEth)} ETH`;
                     return (
                       <tr key={t.hash} className="border-b border-gray-900">
                         <td className="py-2 pr-3">{new Date(Number(t.timeStamp) * 1000).toUTCString()}</td>
-                        <td className="py-2 pr-3">{isIn ? "IN" : "OUT"}</td>
-                        <td className="py-2 pr-3 whitespace-nowrap">{fmt(vEth)} ETH</td>
+
+                        {/* colored direction pill */}
+                        <td className="py-2 pr-3">
+                          <span
+                            className={
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
+                              (isIn
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
+                                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
+                            }
+                            aria-label={isIn ? "Incoming" : "Outgoing"}
+                            title={isIn ? "Incoming" : "Outgoing"}
+                          >
+                            {isIn ? "IN" : "OUT"}
+                          </span>
+                        </td>
+
+                        {/* colored amount with +/- */}
+                        <td
+                          className={
+                            "py-2 pr-3 whitespace-nowrap font-medium " +
+                            (isIn ? "text-emerald-400" : "text-rose-400")
+                          }
+                        >
+                          {signed}
+                        </td>
+
                         <td className="py-2 pr-3 hidden md:table-cell">
                           <a
                             className="underline break-all text-xs"
@@ -504,9 +530,16 @@ export default function BaseWalletChecker() {
                       <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
                         {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
                       </td>
-                      <td className="py-2 pr-3 text-right whitespace-nowrap">{fmt(row.in)}</td>
-                      <td className="py-2 pr-3 text-right whitespace-nowrap">{fmt(row.out)}</td>
+
+                      {/* colored numbers */}
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">
+                        <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
+                      </td>
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">
+                        <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
+                      </td>
                       <td className="py-2 pr-3 text-right whitespace-nowrap">{fmt(row.total)}</td>
+
                       <td className="py-2 pr-3">{row.count}</td>
                       <td className="py-2 pr-3 hidden md:table-cell">
                         <a
