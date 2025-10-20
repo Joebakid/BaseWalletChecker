@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import ThemeProvider from "@/providers/ThemeProvider";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: { default: "Base Wallet Checker", template: "%s • Base Wallet Checker" },
@@ -51,7 +52,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       {/* do NOT hard-force dark colors here; let themes control it */}
       <body className="min-h-screen antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>{children}
+           <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   );
