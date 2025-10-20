@@ -5,6 +5,7 @@ import React, { useMemo, useState } from "react";
 import Stat from "@/components/Stat";
 import { BASE_BLOCKSCOUT, COINGECKO_PRICE, fetchJSON } from "@/lib/api";
 import { fmt, isEthAddr, weiToEth } from "@/lib/utils";
+import InfoNote from "./InfoNote";
 
 type Tx = {
   hash: string;
@@ -260,18 +261,38 @@ export default function BaseWalletChecker() {
   }, [nativeTxs, tokenTxs, nftTxs]);
 
   // Rough airdrop score (%)
-  const airdropPercent = useMemo(() => {
-    const txCount = totalBaseTxs;
-    const txScore = Math.min(txCount / 50, 1);
-    const tokenScore = Math.min((tokenTxs?.length || 0) / 50, 1);
-    const volScore = Math.min((nativeVolumeUsd || 0) / 1000, 1);
-    const peersScore = Math.min(peerSet.size / 25, 1);
-    const cadenceScore = Math.min(daysActive / 20, 1);
+  // Rough airdrop score (%) — stricter and includes balance
+const airdropPercent = useMemo(() => {
+  const txCount = totalBaseTxs;
 
-    const w1 = 0.25, w2 = 0.15, w3 = 0.25, w4 = 0.2, w5 = 0.15;
-    const score = w1 * txScore + w2 * tokenScore + w3 * volScore + w4 * peersScore + w5 * cadenceScore;
-    return Math.round(score * 100);
-  }, [totalBaseTxs, tokenTxs, nativeVolumeUsd, peerSet.size, daysActive]);
+  // Normalize each factor to [0,1] against tougher targets
+  const txScore       = Math.min(txCount / 100, 1);                    // needs ~100 total txs to cap
+  const tokenScore    = Math.min((tokenTxs?.length || 0) / 80, 1);     // needs ~80 ERC-20 transfers
+  const volScore      = Math.min((nativeVolumeUsd || 0) / 5000, 1);    // ~$5k native volume
+  const peersScore    = Math.min(peerSet.size / 50, 1);                // 50 unique peers
+  const cadenceScore  = Math.min(daysActive / 40, 1);                  // active on 40 distinct days
+  const balanceScore  = Math.min((balanceUsd || 0) / 1000, 1);         // ~$1k current balance
+
+  // Heavier weight on (volume + balance), still rewarding activity spread
+  const wTx = 0.20, wTok = 0.10, wVol = 0.25, wPeers = 0.15, wCad = 0.10, wBal = 0.20;
+  const score =
+    wTx * txScore +
+    wTok * tokenScore +
+    wVol * volScore +
+    wPeers * peersScore +
+    wCad * cadenceScore +
+    wBal * balanceScore;
+
+  return Math.round(score * 100);
+}, [
+  totalBaseTxs,
+  tokenTxs,
+  nativeVolumeUsd,
+  peerSet.size,
+  daysActive,
+  balanceUsd,
+]);
+
 
   // -------- Paginators (derived) --------
   const nativePaged = useMemo(() => {
@@ -337,6 +358,8 @@ export default function BaseWalletChecker() {
         {(nativeStats || tokenStats) && (
           <section className="mt-6">
             <h2 className="text-lg font-semibold">Overview</h2>
+             <InfoNote />
+            
 
             {/* Stat groups: single column on small screens */}
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
