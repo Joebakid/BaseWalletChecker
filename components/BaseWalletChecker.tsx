@@ -370,43 +370,54 @@ export default function BaseWalletChecker() {
           API + CoinGecko.
         </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] items-end">
-          <label className="block">
-            <span className="text-xs uppercase text-gray-400">Address</span>
-            <input
-              className="mt-1 w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:outline-none focus:ring-0"
-              placeholder="Enter 0x..., ENS (.eth), or Base name (.base)"
-              value={addr}
-              onChange={(e) => setAddr(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !loading) {
-                  e.preventDefault();
-                  fetchAll();
-                }
-              }}
-            />
-            {/* Resolved preview */}
-            {resolvedAddr && resolvedAddr.toLowerCase() !== addr.trim().toLowerCase() && (
-              <div className="mt-1 text-xs text-gray-400">
-                Resolved: <span className="text-gray-200">{resolvedAddr}</span>
-              </div>
-            )}
-          </label>
+<div className="mt-4">
+  <label className="block text-xs uppercase text-gray-400 mb-1">
+    Address
+  </label>
 
-          <button
-            onClick={fetchAll}
-            disabled={loading}
-            className="rounded-xl border border-gray-800 bg-white text-black px-4 py-2 disabled:opacity-60"
-          >
-            {loading ? "Checking..." : "Check"}
-          </button>
+  <div className="flex gap-3 items-center">
+    {/* Input + resolved */}
+    <div className="flex-1">
+      <input
+        className="w-full rounded-xl border border-gray-800 bg-gray-900 px-3 py-2 outline-none focus:outline-none focus:ring-0"
+        placeholder="Enter 0x..., ENS (.eth), or Base name (.base)"
+        value={addr}
+        onChange={(e) => setAddr(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !loading) {
+            e.preventDefault();
+            fetchAll();
+          }
+        }}
+      />
+   
+    </div>
 
-          {!!usdPrice && (
-            <div className="text-right text-sm text-gray-300">
-              BASE price: ${fmt(usdPrice, 4)}
-            </div>
-          )}
-        </div>
+   
+
+    {/* Button stays aligned with search bar */}
+    <button
+      onClick={fetchAll}
+      disabled={loading}
+      className="h-[42px] rounded-xl border border-gray-800 bg-white text-black px-4 py-2 disabled:opacity-60"
+    >
+      {loading ? "Checking..." : "Check"}
+    </button>
+
+  </div>
+
+  
+        {resolvedAddr &&
+        resolvedAddr.toLowerCase() !== addr.trim().toLowerCase() && (
+          <div className="mt-1 text-xs text-gray-400">
+            Resolved:{" "}
+            <span className="text-gray-200 break-all">{resolvedAddr}</span>
+          </div>
+        )}
+</div>
+
+
+
 
         {error && (
           <div className="mt-4 rounded-2xl border border-red-800 bg-red-950/40 p-3 text-red-300">
