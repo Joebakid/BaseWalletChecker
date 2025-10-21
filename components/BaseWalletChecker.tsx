@@ -575,6 +575,88 @@ export default function BaseWalletChecker() {
           </section>
         )}
 
+           {tokenStats && tokenStats.length > 0 && (
+          <section className="mt-10">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-6">
+              <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <PageSizeSelect
+                  label="Rows"
+                  value={tokenPageSize}
+                  onChange={(n) => {
+                    setTokenPageSize(n);
+                    setTokenPage(1);
+                  }}
+                />
+                <PageControls
+                  page={tokenPaged.page}
+                  totalPages={tokenPaged.totalPages}
+                  onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
+                  onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
+                />
+              </div>
+            </div>
+
+            <div className="mt-2 text-xs text-gray-400">
+              {tokenPaged.total > 0
+                ? `Showing ${tokenPaged.start}–${tokenPaged.end} of ${tokenPaged.total}`
+                : "No rows"}
+            </div>
+
+            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
+              <table className="min-w-full text-sm table-fixed">
+                <thead>
+                  <tr className="text-left border-b border-gray-800 bg-gray-950">
+                    <th className="py-2 pr-3">Token</th>
+                    <th className="py-2 pr-3">In</th>
+                    <th className="py-2 pr-3">Out</th>
+                    <th className="py-2 pr-3">Balance</th>
+                    <th className="py-2 pr-3">Transfers</th>
+                    <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tokenPaged.slice.map((row) => {
+                    const balance = row.in - row.out;
+                    return (
+                      <tr key={row.contract} className="border-b border-gray-900">
+                        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
+                          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
+                        </td>
+                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
+                        </td>
+                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
+                        </td>
+                        <td
+                          className={
+                            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
+                            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
+                          }
+                        >
+                          {fmt(balance)}
+                        </td>
+                        <td className="py-2 pr-3">{row.count}</td>
+                        <td className="py-2 pr-3 hidden md:table-cell">
+                          <a
+                            className="underline break-all text-xs"
+                            href={`https://base.blockscout.com/address/${row.contract}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {row.contract.slice(0, 10)}…
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {!loading && !error && !nativeStats && (
           <p className="mt-8 text-sm text-gray-300">
             Enter an address and press <b>Enter</b> or click <b>Check</b> to see recent activity.
