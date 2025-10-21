@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from "react";
 import Stat from "@/components/Stat";
-import { BASE_BLOCKSCOUT, COINGECKO_PRICE, fetchJSON } from "@/lib/api";
+import { BASE_BLOCKSCOUT, fetchJSON } from "@/lib/api";
 import { fmt, isEthAddr, weiToEth } from "@/lib/utils";
 import InfoNote from "./InfoNote";
 import { resolveName } from "@/lib/resolve";
@@ -13,7 +13,7 @@ type DappApi = {
   address: string;
   totalMatched: number;
   summaryByDapp: Record<string, number>;
-  topUnknown?: { to: string; count: number }[]; // optional debug from API
+  topUnknown?: { to: string; count: number }[];
 };
 
 function topDappsLabel(summary: Record<string, number>): string {
@@ -27,11 +27,11 @@ type Tx = {
   hash: string;
   from: string;
   to: string | null;
-  value: string;     // wei (string)
-  timeStamp: string; // unix seconds (string)
-  isError?: string;  // "1" means failed
-  gasPrice?: string; // wei (string)
-  gasUsed?: string;  // units (string)
+  value: string;
+  timeStamp: string;
+  isError?: string;
+  gasPrice?: string;
+  gasUsed?: string;
 };
 
 type TokenTx = {
@@ -42,7 +42,7 @@ type TokenTx = {
   tokenName: string;
   tokenSymbol: string;
   tokenDecimal: string;
-  value: string;        // raw integer
+  value: string;
   timeStamp: string;
 };
 
@@ -77,7 +77,6 @@ function paginate<T>(arr: T[], page: number, pageSize: number) {
   return { slice: arr.slice(start, end), total, totalPages, page: safePage, start: start + 1, end };
 }
 
-// Base mainnet launch: Aug 9, 2023 00:00:00 UTC
 const BASE_MAINNET_LAUNCH = 1691539200;
 
 const KNOWN_BRIDGES = new Set<string>([
@@ -134,6 +133,14 @@ export default function BaseWalletChecker() {
 
   const lowerAddr = (resolvedAddr || addr).trim().toLowerCase();
 
+  // Helper: ETH to "X ETH ($Y)" string
+  function ethWithUsd(eth: number | null | undefined) {
+    const e = Number(eth || 0);
+    if (!usdPrice) return `${fmt(e)} ETH`;
+    const usd = e * usdPrice;
+    return `${fmt(e)} ETH ($${fmt(usd)})`;
+  }
+
   async function fetchAll() {
     setLoading(true);
     setError(null);
@@ -155,7 +162,7 @@ export default function BaseWalletChecker() {
       if (!isEthAddr(a)) {
         throw new Error(
           input.endsWith(".eth") || input.endsWith(".base")
-            ? "Could not resolve that name to an address."
+            ? "Could not resolve that name to an address. or name doesnot exist"
             : "Enter a valid Base address (0x...) or a .eth / .base name."
         );
       }
@@ -172,19 +179,17 @@ export default function BaseWalletChecker() {
       const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
       const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
 
-      // Parallel: dApp stats + balance + price
+      // Parallel: dApp stats + balance + price (from our server route)
       const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
       const [dappRes, balData, priceData] = await Promise.all([
         fetch(`/api/dapp-txs?address=${a}`, { method: "GET", cache: "no-store" }).then((r) =>
-          r.ok
-            ? r.json()
-            : r.json().then((j) => Promise.reject(new Error(j?.error || "dApp fetch failed")))
+          r.ok ? r.json().catch(() => null) : Promise.resolve(null)
         ),
         fetchJSON<{ result: string }>(balUrl).catch(() => ({ result: "0" })),
-        fetchJSON<any>(COINGECKO_PRICE).catch(() => null),
+        fetchJSON<any>("/api/price").catch(() => null),
       ]);
 
-      const dapps: DappApi = dappRes;
+      const dapps: DappApi = dappRes || { address: a, totalMatched: 0, summaryByDapp: {}, topUnknown: [] };
       setDappCount(dapps?.totalMatched || 0);
       setDappSummary(dapps?.summaryByDapp || {});
       setDappUnknown(dapps?.topUnknown || []);
@@ -196,7 +201,7 @@ export default function BaseWalletChecker() {
         setBalanceEth(null);
       }
 
-      setUsdPrice(priceData?.["base-eth"]?.usd ?? null);
+      setUsdPrice(Number(priceData?.["base-eth"]?.usd) || null);
 
       setNativeTxs(txsInRange);
       setTokenTxs(toksInRange);
@@ -362,7 +367,7 @@ export default function BaseWalletChecker() {
           <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
             Blockscout
           </a>{" "}
-          API + CoinGecko.
+          API + Coinbase/Binance price (no key).
         </p>
 
         <div className="mt-4">
@@ -413,18 +418,10 @@ export default function BaseWalletChecker() {
 
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
               <Stat label="Total Base txs" value={totalBaseTxs} />
-              <Stat
-                label="Native volume"
-                value={`${fmt(nativeVolumeEth)} ETH`}
-                sub={usdPrice ? `$${fmt(nativeVolumeUsd || 0)}` : undefined}
-              />
+              <Stat label="Native volume" value={ethWithUsd(nativeVolumeEth)} />
               <Stat label="Unique peers" value={peerSet.size} />
               <Stat label="Days active" value={daysActive} />
-              <Stat
-                label="Bridged in (ETH)"
-                value={`${fmt(bridgedInEth)} ETH`}
-                sub={usdPrice ? `$${fmt((bridgedInEth || 0) * (usdPrice || 0))}` : undefined}
-              />
+              <Stat label="Bridged in (ETH)" value={ethWithUsd(bridgedInEth)} />
             </div>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
@@ -435,34 +432,12 @@ export default function BaseWalletChecker() {
               <Stat label="dApp txs" value={dappCount} sub={topDappsLabel(dappSummary)} />
             </div>
 
-            {dappCount === 0 && dappUnknown.length > 0 && (
-              <div className="mt-2 text-[11px] text-gray-500">
-                Top unknown <code>to</code> addresses from your txs  
-                <ul className="list-disc list-inside space-y-0.5">
-                  {dappUnknown.slice(0, 5).map((u) => (
-                    <li key={u.to}>
-                      <a className="underline" href={`https://basescan.org/address/${u.to}`} target="_blank" rel="noreferrer">
-                        {u.to}
-                      </a>{" "}
-                      — {u.count} tx
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+      
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Contracts deployed" value={contractsDeployed} />
-              <Stat
-                label="Fee spent"
-                value={`${fmt(feeSpentEth)} ETH`}
-                sub={usdPrice != null ? `$${fmt(feeSpentUsd || 0)}` : undefined}
-              />
-              <Stat
-                label="ETH balance"
-                value={balanceEth != null ? `${fmt(balanceEth)} ETH` : "—"}
-                sub={balanceUsd != null ? `$${fmt(balanceUsd)}` : undefined}
-              />
+              <Stat label="Fee spent" value={ethWithUsd(feeSpentEth)} />
+              <Stat label="ETH balance" value={balanceEth != null ? ethWithUsd(balanceEth) : "—"} />
               <Stat label="Stake / Liquidity" value="—" sub="Needs protocol maps" />
             </div>
 
@@ -495,21 +470,9 @@ export default function BaseWalletChecker() {
             </div>
 
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <Stat
-                label="Incoming"
-                value={`${fmt(nativeStats.in)} ETH`}
-                sub={usdPrice ? `$${fmt(nativeStats.in * (usdPrice || 0))}` : undefined}
-              />
-              <Stat
-                label="Outgoing"
-                value={`${fmt(nativeStats.out)} ETH`}
-                sub={usdPrice ? `$${fmt(nativeStats.out * (usdPrice || 0))}` : undefined}
-              />
-              <Stat
-                label="Total moved"
-                value={`${fmt(nativeStats.total)} ETH`}
-                sub={usdPrice ? `$${fmt(nativeStats.total * (usdPrice || 0))}` : undefined}
-              />
+              <Stat label="Incoming" value={ethWithUsd(nativeStats.in)} />
+              <Stat label="Outgoing" value={ethWithUsd(nativeStats.out)} />
+              <Stat label="Total moved" value={ethWithUsd(nativeStats.total)} />
               <div className="flex items-center justify-end">
                 <PageSizeSelect
                   label="Rows"
@@ -528,6 +491,27 @@ export default function BaseWalletChecker() {
                 : "No rows"}
             </div>
 
+
+
+                  {dappCount === 0 && dappUnknown.length > 0 && (
+              <div className="mt-2 text-[11px] text-gray-500">
+                Top unknown <code>to</code> addresses from your txs  
+                <ul className="list-disc list-inside space-y-0.5">
+                  {dappUnknown.slice(0, 5).map((u) => (
+                    <li key={u.to}>
+                      <a className="underline" href={`https://basescan.org/address/${u.to}`} target="_blank" rel="noreferrer">
+                        {u.to}
+                      </a>{" "}
+                      — {u.count} tx
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+
+            
+
             <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
               <table className="min-w-[900px] text-sm">
                 <thead>
@@ -542,7 +526,10 @@ export default function BaseWalletChecker() {
                   {nativePaged.slice.map((t) => {
                     const isIn = t.to && t.to.toLowerCase() === lowerAddr;
                     const vEth = weiToEth(t.value);
-                    const signed = `${isIn ? "+" : "−"}${fmt(vEth)} ETH`;
+                    const prefix = isIn ? "+" : "−";
+                    const signed = `${prefix}${fmt(vEth)} ETH`;
+                    const signedWithUsd =
+                      usdPrice ? `${signed} ($${fmt(vEth * usdPrice)})` : signed;
 
                     return (
                       <tr key={t.hash} className="border-b border-gray-900">
@@ -567,7 +554,7 @@ export default function BaseWalletChecker() {
                             (isIn ? "text-emerald-400" : "text-rose-400")
                           }
                         >
-                          {signed}
+                          {signedWithUsd}
                         </td>
                         <td className="py-2 pr-3 whitespace-nowrap">
                           <a
@@ -577,88 +564,6 @@ export default function BaseWalletChecker() {
                             rel="noreferrer"
                           >
                             {t.hash}
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {tokenStats && tokenStats.length > 0 && (
-          <section className="mt-10">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-6">
-              <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
-              <div className="flex flex-wrap items-center gap-3">
-                <PageSizeSelect
-                  label="Rows"
-                  value={tokenPageSize}
-                  onChange={(n) => {
-                    setTokenPageSize(n);
-                    setTokenPage(1);
-                  }}
-                />
-                <PageControls
-                  page={tokenPaged.page}
-                  totalPages={tokenPaged.totalPages}
-                  onPrev={() => setTokenPage((p) => Math.max(1, p - 1))}
-                  onNext={() => setTokenPage((p) => Math.min(tokenPaged.totalPages, p + 1))}
-                />
-              </div>
-            </div>
-
-            <div className="mt-2 text-xs text-gray-400">
-              {tokenPaged.total > 0
-                ? `Showing ${tokenPaged.start}–${tokenPaged.end} of ${tokenPaged.total}`
-                : "No rows"}
-            </div>
-
-            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
-              <table className="min-w-full text-sm table-fixed">
-                <thead>
-                  <tr className="text-left border-b border-gray-800 bg-gray-950">
-                    <th className="py-2 pr-3">Token</th>
-                    <th className="py-2 pr-3">In</th>
-                    <th className="py-2 pr-3">Out</th>
-                    <th className="py-2 pr-3">Balance</th>
-                    <th className="py-2 pr-3">Transfers</th>
-                    <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tokenPaged.slice.map((row) => {
-                    const balance = row.in - row.out;
-                    return (
-                      <tr key={row.contract} className="border-b border-gray-900">
-                        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
-                          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
-                        </td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">
-                          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
-                        </td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">
-                          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
-                        </td>
-                        <td
-                          className={
-                            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
-                            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
-                          }
-                        >
-                          {fmt(balance)}
-                        </td>
-                        <td className="py-2 pr-3">{row.count}</td>
-                        <td className="py-2 pr-3 hidden md:table-cell">
-                          <a
-                            className="underline break-all text-xs"
-                            href={`https://base.blockscout.com/address/${row.contract}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {row.contract.slice(0, 10)}…
                           </a>
                         </td>
                       </tr>
