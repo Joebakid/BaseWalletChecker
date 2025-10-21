@@ -7,6 +7,8 @@ import { BASE_BLOCKSCOUT, fetchJSON } from "@/lib/api";
 import { fmt, isEthAddr, weiToEth } from "@/lib/utils";
 import InfoNote from "./InfoNote";
 import { resolveName } from "@/lib/resolve";
+import DappBadge from "@/components/DappBadge";
+
 
 /* --------------------------- dApp types/helpers --------------------------- */
 type DappApi = {
@@ -363,11 +365,7 @@ export default function BaseWalletChecker() {
 
       <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-4 sm:p-5">
         <p className="text-sm text-gray-300">
-          Uses{" "}
-          <a className="underline" href="https://base.blockscout.com/" target="_blank" rel="noreferrer">
-            Blockscout
-          </a>{" "}
-          API + Coinbase/Binance price (no key).
+        This tool is still in beta. Data may be incomplete or inaccurate.
         </p>
 
         <div className="mt-4">
@@ -514,62 +512,69 @@ export default function BaseWalletChecker() {
 
             <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
               <table className="min-w-[900px] text-sm">
-                <thead>
-                  <tr className="text-left border-b border-gray-800 bg-gray-950">
-                    <th className="py-2 pr-3">Time (UTC)</th>
-                    <th className="py-2 pr-3">Dir</th>
-                    <th className="py-2 pr-3">Amount</th>
-                    <th className="py-2 pr-3">Hash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {nativePaged.slice.map((t) => {
-                    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
-                    const vEth = weiToEth(t.value);
-                    const prefix = isIn ? "+" : "−";
-                    const signed = `${prefix}${fmt(vEth)} ETH`;
-                    const signedWithUsd =
-                      usdPrice ? `${signed} ($${fmt(vEth * usdPrice)})` : signed;
+             <thead>
+  <tr className="text-left border-b border-gray-800 bg-gray-950">
+    <th className="py-2 pr-3">Time (UTC)</th>
+    <th className="py-2 pr-3">Dir</th>
+    <th className="py-2 pr-3">Amount</th>
+    <th className="py-2 pr-3">Hash</th>
+    {/* NEW */}
+    <th className="py-2 pr-3">Counterparty</th>
+  </tr>
+</thead>
+<tbody>
+  {nativePaged.slice.map((t) => {
+    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
+    const vEth = weiToEth(t.value);
+    const prefix = isIn ? "+" : "−";
+    const signed = `${prefix}${fmt(vEth)} ETH`;
+    const signedWithUsd =
+      usdPrice ? `${signed} ($${fmt(vEth * usdPrice)})` : signed;
 
-                    return (
-                      <tr key={t.hash} className="border-b border-gray-900">
-                        <td className="py-2 pr-3 whitespace-nowrap">
-                          {new Date(Number(t.timeStamp) * 1000).toUTCString()}
-                        </td>
-                        <td className="py-2 pr-3">
-                          <span
-                            className={
-                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
-                              (isIn
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
-                                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
-                            }
-                          >
-                            {isIn ? "IN" : "OUT"}
-                          </span>
-                        </td>
-                        <td
-                          className={
-                            "py-2 pr-3 whitespace-nowrap font-medium " +
-                            (isIn ? "text-emerald-400" : "text-rose-400")
-                          }
-                        >
-                          {signedWithUsd}
-                        </td>
-                        <td className="py-2 pr-3 whitespace-nowrap">
-                          <a
-                            className="underline text-xs break-all"
-                            href={`https://base.blockscout.com/tx/${t.hash}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {t.hash}
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+    return (
+      <tr key={t.hash} className="border-b border-gray-900">
+        <td className="py-2 pr-3 whitespace-nowrap">
+          {new Date(Number(t.timeStamp) * 1000).toUTCString()}
+        </td>
+        <td className="py-2 pr-3">
+          <span
+            className={
+              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
+              (isIn
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
+                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
+            }
+          >
+            {isIn ? "IN" : "OUT"}
+          </span>
+        </td>
+        <td
+          className={
+            "py-2 pr-3 whitespace-nowrap font-medium " +
+            (isIn ? "text-emerald-400" : "text-rose-400")
+          }
+        >
+          {signedWithUsd}
+        </td>
+        <td className="py-2 pr-3 whitespace-nowrap">
+          <a
+            className="underline text-xs break-all"
+            href={`https://base.blockscout.com/tx/${t.hash}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t.hash}
+          </a>
+        </td>
+        {/* NEW — this calls the dApp/exchange labeler */}
+        <td className="py-2 pr-3 whitespace-nowrap">
+          <DappBadge address={t.to} />
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
               </table>
             </div>
           </section>
@@ -615,43 +620,38 @@ export default function BaseWalletChecker() {
                     <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {tokenPaged.slice.map((row) => {
-                    const balance = row.in - row.out;
-                    return (
-                      <tr key={row.contract} className="border-b border-gray-900">
-                        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
-                          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
-                        </td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">
-                          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
-                        </td>
-                        <td className="py-2 pr-3 text-right whitespace-nowrap">
-                          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
-                        </td>
-                        <td
-                          className={
-                            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
-                            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
-                          }
-                        >
-                          {fmt(balance)}
-                        </td>
-                        <td className="py-2 pr-3">{row.count}</td>
-                        <td className="py-2 pr-3 hidden md:table-cell">
-                          <a
-                            className="underline break-all text-xs"
-                            href={`https://base.blockscout.com/address/${row.contract}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {row.contract.slice(0, 10)}…
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+               <tbody>
+  {tokenPaged.slice.map((row) => {
+    const balance = row.in - row.out;
+    return (
+      <tr key={row.contract} className="border-b border-gray-900">
+        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
+          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
+        </td>
+        <td className="py-2 pr-3 text-right whitespace-nowrap">
+          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
+        </td>
+        <td className="py-2 pr-3 text-right whitespace-nowrap">
+          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
+        </td>
+        <td
+          className={
+            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
+            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
+          }
+        >
+          {fmt(balance)}
+        </td>
+        <td className="py-2 pr-3">{row.count}</td>
+        {/* 🔽 HERE is where you swap the contract link with the badge */}
+        <td className="py-2 pr-3 hidden md:table-cell">
+          <DappBadge address={row.contract} />
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
               </table>
             </div>
           </section>
