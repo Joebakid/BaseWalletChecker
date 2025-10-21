@@ -510,7 +510,7 @@ export default function BaseWalletChecker() {
 
             
 
-            <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800">
+            <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800 p-4">
               <table className="min-w-[900px] text-sm">
              <thead>
   <tr className="text-left border-b border-gray-800 bg-gray-950">
@@ -608,7 +608,7 @@ export default function BaseWalletChecker() {
                 : "No rows"}
             </div>
 
-            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
+            <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800 p-4">
               <table className="min-w-full text-sm table-fixed">
                 <thead>
                   <tr className="text-left border-b border-gray-800 bg-gray-950">
