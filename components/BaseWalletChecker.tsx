@@ -364,8 +364,8 @@ export default function BaseWalletChecker() {
       {loading && <LoaderOverlay message="Checking transactions on Base…" />}
 
       <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-4 sm:p-5">
-        <p className="text-sm text-gray-300">
-        This tool is still in beta. Data may be incomplete or inaccurate.
+        <p className="text-sm text-blue-500 font-bold">
+       Note: This tool is still in beta. Data may be incomplete or inaccurate.
         </p>
 
         <div className="mt-4">
