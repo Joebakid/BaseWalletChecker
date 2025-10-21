@@ -9,7 +9,6 @@ import InfoNote from "./InfoNote";
 import { resolveName } from "@/lib/resolve";
 import DappBadge from "@/components/DappBadge";
 
-
 /* --------------------------- dApp types/helpers --------------------------- */
 type DappApi = {
   address: string;
@@ -107,6 +106,11 @@ async function fetchPaged<T>(
   return out;
 }
 
+// unix seconds → local datetime string
+function fmtLocal(unixSec: string | number) {
+  return new Date(Number(unixSec) * 1000).toLocaleString();
+}
+
 /* --------------------------------- Component ------------------------------- */
 export default function BaseWalletChecker() {
   const [addr, setAddr] = useState("");
@@ -133,6 +137,10 @@ export default function BaseWalletChecker() {
   const [dappSummary, setDappSummary] = useState<Record<string, number>>({});
   const [dappUnknown, setDappUnknown] = useState<{ to: string; count: number }[]>([]);
 
+  // NEW: first/last txn dates (across native + token + NFT)
+  const [firstTxnDate, setFirstTxnDate] = useState<string>("—");
+  const [lastTxnDate, setLastTxnDate] = useState<string>("—");
+
   const lowerAddr = (resolvedAddr || addr).trim().toLowerCase();
 
   // Helper: ETH to "X ETH ($Y)" string
@@ -155,6 +163,8 @@ export default function BaseWalletChecker() {
     setDappUnknown([]);
     setNativePage(1);
     setTokenPage(1);
+    setFirstTxnDate("—");
+    setLastTxnDate("—");
 
     try {
       const input = addr.trim();
@@ -172,7 +182,7 @@ export default function BaseWalletChecker() {
 
       const since = BASE_MAINNET_LAUNCH;
 
-      // Blockscout pages
+      // Blockscout pages (desc = newest → oldest)
       const txsAll = await fetchPaged<Tx>("txlist", a, "desc", 10);
       const toksAll = await fetchPaged<TokenTx>("tokentx", a, "desc", 10);
       const nftsAll = await fetchPaged<NftTx>("tokennfttx", a, "desc", 10);
@@ -180,6 +190,22 @@ export default function BaseWalletChecker() {
       const txsInRange = txsAll.filter((t) => t.isError !== "1" && Number(t.timeStamp) >= since);
       const toksInRange = toksAll.filter((t) => Number(t.timeStamp) >= since);
       const nftsInRange = nftsAll.filter((t) => Number(t.timeStamp) >= since);
+
+      // Compute first/last across all activity types
+      const allTs: number[] = [];
+      for (const t of txsInRange) allTs.push(Number(t.timeStamp));
+      for (const t of toksInRange) allTs.push(Number(t.timeStamp));
+      for (const t of nftsInRange) allTs.push(Number(t.timeStamp));
+
+      if (allTs.length > 0) {
+        const minTs = Math.min(...allTs); // oldest
+        const maxTs = Math.max(...allTs); // newest
+        setFirstTxnDate(fmtLocal(minTs));
+        setLastTxnDate(fmtLocal(maxTs));
+      } else {
+        setFirstTxnDate("—");
+        setLastTxnDate("—");
+      }
 
       // Parallel: dApp stats + balance + price (from our server route)
       const balUrl = `${BASE_BLOCKSCOUT}?module=account&action=balance&address=${a}`;
@@ -365,7 +391,7 @@ export default function BaseWalletChecker() {
 
       <section className="mt-6 rounded-2xl border border-gray-800 bg-black text-gray-100 p-4 sm:p-5">
         <p className="text-sm text-blue-500 font-bold">
-       Note: This tool is still in beta. Data may be incomplete or inaccurate.
+          Note: This tool is still in beta. Data may be incomplete or inaccurate.
         </p>
 
         <div className="mt-4">
@@ -430,11 +456,15 @@ export default function BaseWalletChecker() {
               <Stat label="dApp txs" value={dappCount} sub={topDappsLabel(dappSummary)} />
             </div>
 
-      
-
+            {/* NEW: First/Last Txn Dates */}
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <Stat label="First Txn" value={firstTxnDate} />
+              <Stat label="Last Txn" value={lastTxnDate} />
               <Stat label="Contracts deployed" value={contractsDeployed} />
               <Stat label="Fee spent" value={ethWithUsd(feeSpentEth)} />
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-3">
               <Stat label="ETH balance" value={balanceEth != null ? ethWithUsd(balanceEth) : "—"} />
               <Stat label="Stake / Liquidity" value="—" sub="Needs protocol maps" />
             </div>
@@ -489,11 +519,9 @@ export default function BaseWalletChecker() {
                 : "No rows"}
             </div>
 
-
-
-                  {dappCount === 0 && dappUnknown.length > 0 && (
+            {dappCount === 0 && dappUnknown.length > 0 && (
               <div className="mt-2 text-[11px] text-gray-500">
-                Top unknown <code>to</code> addresses from your txs  
+                Top unknown <code>to</code> addresses from your txs
                 <ul className="list-disc list-inside space-y-0.5">
                   {dappUnknown.slice(0, 5).map((u) => (
                     <li key={u.to}>
@@ -507,80 +535,76 @@ export default function BaseWalletChecker() {
               </div>
             )}
 
-
-            
-
             <div className="mt-2 overflow-x-auto rounded-xl border border-gray-800 p-4">
               <table className="min-w-[900px] text-sm">
-             <thead>
-  <tr className="text-left border-b border-gray-800 bg-gray-950">
-    <th className="py-2 pr-3">Time (UTC)</th>
-    <th className="py-2 pr-3">Dir</th>
-    <th className="py-2 pr-3">Amount</th>
-    <th className="py-2 pr-3">Hash</th>
-    {/* NEW */}
-    <th className="py-2 pr-3">Counterparty</th>
-  </tr>
-</thead>
-<tbody>
-  {nativePaged.slice.map((t) => {
-    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
-    const vEth = weiToEth(t.value);
-    const prefix = isIn ? "+" : "−";
-    const signed = `${prefix}${fmt(vEth)} ETH`;
-    const signedWithUsd =
-      usdPrice ? `${signed} ($${fmt(vEth * usdPrice)})` : signed;
+                <thead>
+                  <tr className="text-left border-b border-gray-800 bg-gray-950">
+                    <th className="py-2 pr-3">Time (UTC)</th>
+                    <th className="py-2 pr-3">Dir</th>
+                    <th className="py-2 pr-3">Amount</th>
+                    <th className="py-2 pr-3">Hash</th>
+                    {/* NEW */}
+                    <th className="py-2 pr-3">Counterparty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nativePaged.slice.map((t) => {
+                    const isIn = t.to && t.to.toLowerCase() === lowerAddr;
+                    const vEth = weiToEth(t.value);
+                    const prefix = isIn ? "+" : "−";
+                    const signed = `${prefix}${fmt(vEth)} ETH`;
+                    const signedWithUsd =
+                      usdPrice ? `${signed} ($${fmt(vEth * usdPrice)})` : signed;
 
-    return (
-      <tr key={t.hash} className="border-b border-gray-900">
-        <td className="py-2 pr-3 whitespace-nowrap">
-          {new Date(Number(t.timeStamp) * 1000).toUTCString()}
-        </td>
-        <td className="py-2 pr-3">
-          <span
-            className={
-              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
-              (isIn
-                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
-                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
-            }
-          >
-            {isIn ? "IN" : "OUT"}
-          </span>
-        </td>
-        <td
-          className={
-            "py-2 pr-3 whitespace-nowrap font-medium " +
-            (isIn ? "text-emerald-400" : "text-rose-400")
-          }
-        >
-          {signedWithUsd}
-        </td>
-        <td className="py-2 pr-3 whitespace-nowrap">
-          <a
-            className="underline text-xs break-all"
-            href={`https://base.blockscout.com/tx/${t.hash}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t.hash}
-          </a>
-        </td>
-        {/* NEW — this calls the dApp/exchange labeler */}
-        <td className="py-2 pr-3 whitespace-nowrap">
-          <DappBadge address={t.to} />
-        </td>
-      </tr>
-    );
-  })}
-</tbody>
-
+                    return (
+                      <tr key={t.hash} className="border-b border-gray-900">
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          {new Date(Number(t.timeStamp) * 1000).toUTCString()}
+                        </td>
+                        <td className="py-2 pr-3">
+                          <span
+                            className={
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium " +
+                              (isIn
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-600/30"
+                                : "bg-rose-500/10 text-rose-400 border border-rose-600/30")
+                            }
+                          >
+                            {isIn ? "IN" : "OUT"}
+                          </span>
+                        </td>
+                        <td
+                          className={
+                            "py-2 pr-3 whitespace-nowrap font-medium " +
+                            (isIn ? "text-emerald-400" : "text-rose-400")
+                          }
+                        >
+                          {signedWithUsd}
+                        </td>
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          <a
+                            className="underline text-xs break-all"
+                            href={`https://base.blockscout.com/tx/${t.hash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {t.hash}
+                          </a>
+                        </td>
+                        {/* NEW — this calls the dApp/exchange labeler */}
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          <DappBadge address={t.to} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
               </table>
             </div>
           </section>
         )}
 
-           {tokenStats && tokenStats.length > 0 && (
+        {tokenStats && tokenStats.length > 0 && (
           <section className="mt-10">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-6">
               <h2 className="text-lg font-semibold">Token Transfers (ERC-20)</h2>
@@ -620,38 +644,37 @@ export default function BaseWalletChecker() {
                     <th className="py-2 pr-3 hidden md:table-cell">Contract</th>
                   </tr>
                 </thead>
-               <tbody>
-  {tokenPaged.slice.map((row) => {
-    const balance = row.in - row.out;
-    return (
-      <tr key={row.contract} className="border-b border-gray-900">
-        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
-          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
-        </td>
-        <td className="py-2 pr-3 text-right whitespace-nowrap">
-          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
-        </td>
-        <td className="py-2 pr-3 text-right whitespace-nowrap">
-          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
-        </td>
-        <td
-          className={
-            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
-            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
-          }
-        >
-          {fmt(balance)}
-        </td>
-        <td className="py-2 pr-3">{row.count}</td>
-        {/* 🔽 HERE is where you swap the contract link with the badge */}
-        <td className="py-2 pr-3 hidden md:table-cell">
-          <DappBadge address={row.contract} />
-        </td>
-      </tr>
-    );
-  })}
-</tbody>
-
+                <tbody>
+                  {tokenPaged.slice.map((row) => {
+                    const balance = row.in - row.out;
+                    return (
+                      <tr key={row.contract} className="border-b border-gray-900">
+                        <td className="py-2 pr-3 font-medium max-w-[220px] truncate md:max-w-none md:whitespace-normal">
+                          {row.symbol} <span className="text-xs text-gray-400">({row.name})</span>
+                        </td>
+                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                          <span className="font-medium text-emerald-400">+{fmt(row.in)}</span>
+                        </td>
+                        <td className="py-2 pr-3 text-right whitespace-nowrap">
+                          <span className="font-medium text-rose-400">−{fmt(row.out)}</span>
+                        </td>
+                        <td
+                          className={
+                            "py-2 pr-3 text-right whitespace-nowrap font-semibold " +
+                            (balance >= 0 ? "text-emerald-400" : "text-rose-400")
+                          }
+                        >
+                          {fmt(balance)}
+                        </td>
+                        <td className="py-2 pr-3">{row.count}</td>
+                        {/* 🔽 HERE is where you swap the contract link with the badge */}
+                        <td className="py-2 pr-3 hidden md:table-cell">
+                          <DappBadge address={row.contract} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
               </table>
             </div>
           </section>
