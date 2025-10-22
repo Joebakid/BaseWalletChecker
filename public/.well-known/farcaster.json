@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "name": "BaseWallet Checker",
+  "icon": "https://base-walletchecker.vercel.app/icon.png",
+  "website": "https://base-walletchecker.vercel.app/",
+  "entry": "https://base-walletchecker.vercel.app/",
+  "description": "Check Base activity: dApps, volume, tokens, fees & more."
+}
