@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "BaseWallet Checker",
+  "name": "Base Wallet Checker",
   "icon": "https://base-walletchecker.vercel.app/icon.png",
   "website": "https://base-walletchecker.vercel.app/",
   "entry": "https://base-walletchecker.vercel.app/",

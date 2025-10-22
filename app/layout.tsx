@@ -1,11 +1,18 @@
 // app/layout.tsx
-import "./globals.css"; // Tailwind only — no OnchainKit import here
+import "./globals.css";
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import ThemeProvider from "@/providers/ThemeProvider";
 import Providers from "./providers";
 import { Analytics } from "@vercel/analytics/react";
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: {
@@ -16,44 +23,40 @@ export const metadata: Metadata = {
     "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
   metadataBase: new URL("https://base-walletchecker.vercel.app/"),
   alternates: { canonical: "/" },
-
   openGraph: {
     type: "website",
     title: "Base Wallet Checker",
     description:
       "Analyze any Base address: native/ ERC-20/ NFT transfers, fees, peers, days active, and more.",
     url: "/",
-    images: ["/og.png"],  // ✅ 1200×630
+    images: ["/og.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Base Wallet Checker",
-    description:
-      "Analyze Base wallet activity with clean stats pulled from Blockscout.",
-    images: ["/og.png"],  // ✅ reused for Twitter
+    description: "Analyze Base wallet activity with clean stats pulled from Blockscout.",
+    images: ["/og.png"],
   },
+  // You can keep icons here, but we’ll also add explicit <link> tags below to beat caching.
   icons: {
-    icon: "/favicon.ico",              // browser tab
+    icon: "/favicon.ico",
     shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",   // iOS
+    apple: "/apple-touch-icon.png",
   },
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
 };
-
- 
-
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Load OnchainKit CSS as a static stylesheet (bypasses PostCSS/Tailwind) */}
+        {/* OnchainKit CSS via static file */}
         <link rel="stylesheet" href="/onchainkit.css" />
 
-        {/* Pre-apply theme before paint */}
+        {/* 🔑 Favicons with cache-busting to force refresh in dev */}
+        <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+        <link rel="icon" type="image/png" href="/icon.png?v=3" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+
         <Script id="apply-theme" strategy="beforeInteractive">
           {`
             (function () {
