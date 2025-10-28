@@ -1,13 +1,13 @@
 // minikit.config.ts
 
 export const minikitConfig = {
-  accountAssociation: {
-    header:
-      "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg3REU4YjljYTNhNDFjMDcyMWQzOUZBRmVhN2Q0ZjY0MDUzZDREZjUxIn0",
-    payload: "eyJkb21haW4iOiJiYXNlLXdhbGxldGNoZWNrZXIudmVyY2VsLmFwcCJ9",
-    signature:
-      "8kKlE+aniNmV0AuZchf+z3QdzbgI9M2G/tiTRlWKAjllDZb+emJKXbE5ovYE6MT6kf+NsDM3HoG4YZcwILNToxw=",
-  },
+ 
+  "accountAssociation": {
+    "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg3REU4YjljYTNhNDFjMDcyMWQzOUZBRmVhN2Q0ZjY0MDUzZDREZjUxIn0",
+    "payload": "eyJkb21haW4iOiJiYXNlLXdhbGxldGNoZWNrZXIudmVyY2VsLmFwcCJ9",
+    "signature": "8kKlE+aniNmV0AuZchf+z3QdzbgI9M2G/tiTRlWKAjllDZb+emJKXbE5ovYE6MT6kf+NsDM3HoG4YZcwILNToxw="
+  }
+,
 
   baseBuilder: {
     ownerAddress: "0x1c08A8A497ea9E2aAE3EE9d9b8e8b20D426DA085", // <-- replace with your Base account address
