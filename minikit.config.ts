@@ -1,11 +1,12 @@
 // minikit.config.ts
 export const minikitConfig = {
-  accountAssociation: {
-    // ⬇️ Paste the real values after signing with the Base Account Association tool
-    header: "",
-    payload: "",
-    signature: "",
+ 
+  "accountAssociation": {
+    "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg3REU4YjljYTNhNDFjMDcyMWQzOUZBRmVhN2Q0ZjY0MDUzZDREZjUxIn0",
+    "payload": "eyJkb21haW4iOiJjaHVjay1taW5pLWFwcC52ZXJjZWwuYXBwIn0",
+    "signature": "t+ey+IWdxSTWbQj5ZM+PprxqvK6pRG57Fi77vUNsumUjXfFrx5Ozo/ulDVqZ00zrTxdQPZiq8J978kr69Nsqohs="
   },
+
   miniapp: {
     version: "1",
     name: "Base Wallet Checker",
