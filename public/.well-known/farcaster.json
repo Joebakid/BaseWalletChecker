@@ -1,5 +1,6 @@
 {
-  
+ 
+
   "accountAssociation": {
     "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg3REU4YjljYTNhNDFjMDcyMWQzOUZBRmVhN2Q0ZjY0MDUzZDREZjUxIn0",
     "payload": "eyJkb21haW4iOiJiYXNlLXdhbGxldGNoZWNrZXIudmVyY2VsLmFwcCJ9",
@@ -7,7 +8,7 @@
   }
 ,
   "baseBuilder": {
-    "ownerAddress": "0xYOUR_BASE_ACCOUNT_ADDRESS"
+    "ownerAddress": "0x1c08A8A497ea9E2aAE3EE9d9b8e8b20D426DA085"
   },
   "miniapp": {
     "version": "1",
@@ -19,9 +20,7 @@
     "webhookUrl": "https://base-walletchecker.vercel.app/api/webhook",
     "subtitle": "Quick wallet insights",
     "description": "Analyze Base wallet activity quickly — dApps, tokens, fees & volume.",
-    "screenshotUrls": [
-      "https://base-walletchecker.vercel.app/og.png"
-    ],
+    "screenshotUrls": ["https://base-walletchecker.vercel.app/og.png"],
     "primaryCategory": "utilities",
     "tags": ["base", "wallet", "analytics"],
     "heroImageUrl": "https://base-walletchecker.vercel.app/og.png",
