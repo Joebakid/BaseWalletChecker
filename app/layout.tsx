@@ -14,36 +14,55 @@ export const viewport: Viewport = {
   ],
 };
 
-export const metadata: Metadata = {
-  title: {
-    default: "Base Wallet Checker",
-    template: "%s • Base Wallet Checker",
-  },
-  description:
-    "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
-  metadataBase: new URL("https://base-walletchecker.vercel.app/"),
-  alternates: { canonical: "/" },
-  openGraph: {
-    type: "website",
-    title: "Base Wallet Checker",
+// ✅ dynamic metadata
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: {
+      default: "Base Wallet Checker",
+      template: "%s • Base Wallet Checker",
+    },
     description:
-      "Analyze any Base address: native/ ERC-20/ NFT transfers, fees, peers, days active, and more.",
-    url: "/",
-    images: ["/og.png"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Base Wallet Checker",
-    description: "Analyze Base wallet activity with clean stats pulled from Blockscout.",
-    images: ["/og.png"],
-  },
-  // You can keep icons here, but we’ll also add explicit <link> tags below to beat caching.
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
-};
+      "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
+    metadataBase: new URL("https://base-walletchecker.vercel.app/"),
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      title: "Base Wallet Checker",
+      description:
+        "Analyze any Base address: native/ ERC-20/ NFT transfers, fees, peers, days active, and more.",
+      url: "/",
+      images: ["/og.png"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Base Wallet Checker",
+      description:
+        "Analyze Base wallet activity with clean stats pulled from Blockscout.",
+      images: ["/og.png"],
+    },
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/apple-touch-icon.png",
+    },
+    other: {
+      "fc:miniapp": JSON.stringify({
+        version: "next",
+        imageUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
+        button: {
+          title: "Launch Base Wallet Checker",
+          action: {
+            type: "launch_miniapp",
+            name: "Base Wallet Checker",
+            url: process.env.NEXT_PUBLIC_ROOT_URL,
+            splashImageUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
+            splashBackgroundColor: "#000000",
+          },
+        },
+      }),
+    },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
