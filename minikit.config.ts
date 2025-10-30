@@ -3,14 +3,15 @@
 export const minikitConfig = {
  
   
+
   "accountAssociation": {
     "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxRmZDMTQ0QzM2ZjU3OTNENDUyN2UzNWIwODAxODgzNDcyZTI3MGRCIn0",
     "payload": "eyJkb21haW4iOiJiYXNlLXdhbGxldGNoZWNrZXIudmVyY2VsLmFwcCJ9",
     "signature": "G8yHDXn92ywT3D+MXVgbtUFDxQqhMuP4K/min3sulYoQSryVyhUMD3mxDD0g1kzqLXWtRa9iypu7hZuT42nLrhw="
   }
+
+
 ,
-
-
 
   baseBuilder: {
     ownerAddress: "0x1c08A8A497ea9E2aAE3EE9d9b8e8b20D426DA085", // <-- replace with your Base account address
