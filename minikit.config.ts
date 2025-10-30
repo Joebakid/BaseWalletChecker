@@ -20,9 +20,7 @@ export const minikitConfig = {
     subtitle: "Quick wallet insights",
     description:
       "Analyze Base wallet activity quickly — dApps, tokens, fees & volume.",
-    screenshotUrls: [w
-      `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
-    ],
+    screenshotUrls: [`${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`],
     iconUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/icon.png`,
     splashImageUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
     splashBackgroundColor: "#000000",
