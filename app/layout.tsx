@@ -1,11 +1,11 @@
 // app/layout.tsx
 import "./globals.css";
-
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import ThemeProvider from "@/providers/ThemeProvider";
 import Providers from "./providers";
 import { Analytics } from "@vercel/analytics/react";
+import MiniAppReady from "./MiniAppReady"; // ← add this
 
 export const viewport: Viewport = {
   themeColor: [
@@ -14,16 +14,13 @@ export const viewport: Viewport = {
   ],
 };
 
-// ✅ dynamic metadata
 export async function generateMetadata(): Promise<Metadata> {
+  const ROOT = process.env.NEXT_PUBLIC_ROOT_URL ?? "https://base-walletchecker.vercel.app";
   return {
-    title: {
-      default: "Base Wallet Checker",
-      template: "%s • Base Wallet Checker",
-    },
+    title: { default: "Base Wallet Checker", template: "%s • Base Wallet Checker" },
     description:
       "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
-    metadataBase: new URL("https://base-walletchecker.vercel.app/"),
+    metadataBase: new URL(ROOT),
     alternates: { canonical: "/" },
     openGraph: {
       type: "website",
@@ -36,8 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "Base Wallet Checker",
-      description:
-        "Analyze Base wallet activity with clean stats pulled from Blockscout.",
+      description: "Analyze Base wallet activity with clean stats pulled from Blockscout.",
       images: ["/og.png"],
     },
     icons: {
@@ -47,15 +43,15 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     other: {
       "fc:miniapp": JSON.stringify({
-        version: "next",
-        imageUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
+        version: "next", // ok
+        imageUrl: `${ROOT}/og.png`,
         button: {
           title: "Launch Base Wallet Checker",
           action: {
             type: "launch_miniapp",
             name: "Base Wallet Checker",
-            url: process.env.NEXT_PUBLIC_ROOT_URL,
-            splashImageUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
+            url: ROOT,
+            splashImageUrl: `${ROOT}/og.png`,
             splashBackgroundColor: "#000000",
           },
         },
@@ -68,14 +64,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* OnchainKit CSS via static file */}
         <link rel="stylesheet" href="/onchainkit.css" />
-
-        {/* 🔑 Favicons with cache-busting to force refresh in dev */}
         <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
         <link rel="icon" type="image/png" href="/icon.png?v=3" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
-
         <Script id="apply-theme" strategy="beforeInteractive">
           {`
             (function () {
@@ -91,6 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
+          <MiniAppReady />   {/* ← sends the Ready signal on first paint */}
           <Providers>{children}</Providers>
           <Analytics />
         </ThemeProvider>
