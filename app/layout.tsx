@@ -5,6 +5,7 @@ import Script from "next/script";
 import ThemeProvider from "@/providers/ThemeProvider";
 import Providers from "./providers";
 import { Analytics } from "@vercel/analytics/react";
+import Ready from "./Ready"; // add this
 // import MiniAppReady from "./MiniAppReady";  
 
 export const viewport: Viewport = {
@@ -84,6 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
+           <Ready /> 
           {/* <MiniAppReady />  ← remove this line */}
           <Providers>{children}</Providers>
           <Analytics />
