@@ -5,7 +5,7 @@ import Script from "next/script";
 import ThemeProvider from "@/providers/ThemeProvider";
 import Providers from "./providers";
 import { Analytics } from "@vercel/analytics/react";
-import MiniAppReady from "./MiniAppReady"; // ← add this
+// import MiniAppReady from "./MiniAppReady";  
 
 export const viewport: Viewport = {
   themeColor: [
