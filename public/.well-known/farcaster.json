@@ -15,7 +15,7 @@
     "splashBackgroundColor": "#000000",
     "homeUrl": "https://base-walletchecker.vercel.app",
     "webhookUrl": "https://base-walletchecker.vercel.app/api/webhook",
-    "primaryCategory": "utilities",
+    "primaryCategory": "utility",
     "tags": ["base", "wallet", "analytics"],
     "heroImageUrl": "https://base-walletchecker.vercel.app/og.png",
     "tagline": "Check Base activity at a glance",
