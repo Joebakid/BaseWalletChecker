@@ -3,5 +3,24 @@
     "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxRmZDMTQ0QzM2ZjU3OTNENDUyN2UzNWIwODAxODgzNDcyZTI3MGRCIn0",
     "payload": "eyJkb21haW4iOiJiYXNlLXdhbGxldGNoZWNrZXIudmVyY2VsLmFwcCJ9",
     "signature": "G8yHDXn92ywT3D+MXVgbtUFDxQqhMuP4K/min3sulYoQSryVyhUMD3mxDD0g1kzqLXWtRa9iypu7hZuT42nLrhw="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Base Wallet Checker",
+    "subtitle": "Quick wallet insights",
+    "description": "Analyze Base wallet activity quickly — dApps, tokens, fees & volume.",
+    "screenshotUrls": ["https://base-walletchecker.vercel.app/og.png"],
+    "iconUrl": "https://base-walletchecker.vercel.app/icon.png",
+    "splashImageUrl": "https://base-walletchecker.vercel.app/og.png",
+    "splashBackgroundColor": "#000000",
+    "homeUrl": "https://base-walletchecker.vercel.app",
+    "webhookUrl": "https://base-walletchecker.vercel.app/api/webhook",
+    "primaryCategory": "utilities",
+    "tags": ["base", "wallet", "analytics"],
+    "heroImageUrl": "https://base-walletchecker.vercel.app/og.png",
+    "tagline": "Check Base activity at a glance",
+    "ogTitle": "Base Wallet Checker",
+    "ogDescription": "Analyze Base wallet activity quickly — track dApps, tokens, fees & more.",
+    "ogImageUrl": "https://base-walletchecker.vercel.app/og.png"
   }
 }
