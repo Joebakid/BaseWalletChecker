@@ -10,7 +10,7 @@ export const minikitConfig = {
   }
 ,
 
-,
+
 
   baseBuilder: {
     ownerAddress: "0x1c08A8A497ea9E2aAE3EE9d9b8e8b20D426DA085", // <-- replace with your Base account address
