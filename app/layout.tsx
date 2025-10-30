@@ -80,14 +80,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             })();
           `}
         </Script>
+    // app/layout.tsx  (tail end)
       </head>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
-          <MiniAppReady />   {/* ← sends the Ready signal on first paint */}
+          {/* <MiniAppReady />  ← remove this line */}
           <Providers>{children}</Providers>
           <Analytics />
         </ThemeProvider>
       </body>
     </html>
+
   );
 }
