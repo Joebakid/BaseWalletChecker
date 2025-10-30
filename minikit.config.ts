@@ -2,11 +2,13 @@
 
 export const minikitConfig = {
  
+  
   "accountAssociation": {
-    "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg3REU4YjljYTNhNDFjMDcyMWQzOUZBRmVhN2Q0ZjY0MDUzZDREZjUxIn0",
+    "header": "eyJmaWQiOjExMzc4NTAsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxRmZDMTQ0QzM2ZjU3OTNENDUyN2UzNWIwODAxODgzNDcyZTI3MGRCIn0",
     "payload": "eyJkb21haW4iOiJiYXNlLXdhbGxldGNoZWNrZXIudmVyY2VsLmFwcCJ9",
-    "signature": "8kKlE+aniNmV0AuZchf+z3QdzbgI9M2G/tiTRlWKAjllDZb+emJKXbE5ovYE6MT6kf+NsDM3HoG4YZcwILNToxw="
+    "signature": "G8yHDXn92ywT3D+MXVgbtUFDxQqhMuP4K/min3sulYoQSryVyhUMD3mxDD0g1kzqLXWtRa9iypu7hZuT42nLrhw="
   }
+,
 
 ,
 
