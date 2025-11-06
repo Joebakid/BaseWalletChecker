@@ -5,8 +5,6 @@ import Script from "next/script";
 import ThemeProvider from "@/providers/ThemeProvider";
 import Providers from "./providers";
 import { Analytics } from "@vercel/analytics/react";
-import Ready from "./Ready"; // add this
-// import MiniAppReady from "./MiniAppReady";  
 
 export const viewport: Viewport = {
   themeColor: [
@@ -15,53 +13,41 @@ export const viewport: Viewport = {
   ],
 };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const ROOT = process.env.NEXT_PUBLIC_ROOT_URL ?? "https://base-walletchecker.vercel.app";
-  return {
-    title: { default: "Base Wallet Checker", template: "%s • Base Wallet Checker" },
+export const metadata: Metadata = {
+  title: {
+    default: "Base Wallet Checker",
+    template: "%s • Base Wallet Checker",
+  },
+  description:
+    "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20, and NFT transfers, fees, peers, and more.",
+  metadataBase: new URL("https://base-walletchecker.vercel.app"),
+  openGraph: {
+    type: "website",
+    title: "Base Wallet Checker",
     description:
-      "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
-    metadataBase: new URL(ROOT),
-    alternates: { canonical: "/" },
-    openGraph: {
-      type: "website",
-      title: "Base Wallet Checker",
-      description:
-        "Analyze any Base address: native/ ERC-20/ NFT transfers, fees, peers, days active, and more.",
-      url: "/",
-      images: ["/og.png"],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: "Base Wallet Checker",
-      description: "Analyze Base wallet activity with clean stats pulled from Blockscout.",
-      images: ["/og.png"],
-    },
-    icons: {
-      icon: "/favicon.ico",
-      shortcut: "/favicon.ico",
-      apple: "/apple-touch-icon.png",
-    },
-    other: {
-      "fc:miniapp": JSON.stringify({
-        version: "next", // ok
-        imageUrl: `${ROOT}/og.png`,
-        button: {
-          title: "Launch Base Wallet Checker",
-          action: {
-            type: "launch_miniapp",
-            name: "Base Wallet Checker",
-            url: ROOT,
-            splashImageUrl: `${ROOT}/og.png`,
-            splashBackgroundColor: "#000000",
-          },
-        },
-      }),
-    },
-  };
-}
+      "Analyze any Base address: native/ ERC-20/ NFT transfers, fees, peers, days active, and more.",
+    url: "/",
+    images: ["/og.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Base Wallet Checker",
+    description:
+      "Analyze Base wallet activity with clean stats pulled from Blockscout.",
+    images: ["/og.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -69,29 +55,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
         <link rel="icon" type="image/png" href="/icon.png?v=3" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+
+        {/* Apply saved theme ASAP to avoid flash */}
         <Script id="apply-theme" strategy="beforeInteractive">
           {`
             (function () {
               try {
-                var t = localStorage.getItem('theme') || 'dim';
+                var STORAGE_KEY = 'theme';
+                var all = ['light', 'dim', 'dark'];
+                var t = localStorage.getItem(STORAGE_KEY) || 'dim';
                 var el = document.documentElement;
                 el.classList.remove('light','dim','dark');
+                if (all.indexOf(t) === -1) t = 'dim';
                 el.classList.add(t);
               } catch (e) {}
             })();
           `}
         </Script>
-    // app/layout.tsx  (tail end)
       </head>
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen antialiased transition-colors duration-300 bg-white text-black dark:bg-black dark:text-white">
         <ThemeProvider>
-           <Ready /> 
-          {/* <MiniAppReady />  ← remove this line */}
           <Providers>{children}</Providers>
           <Analytics />
         </ThemeProvider>
       </body>
     </html>
-
   );
 }
