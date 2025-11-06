@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const ROOT = process.env.NEXT_PUBLIC_ROOT_URL ?? "https://base-walletchecker.vercel.app";
   return {
-    title: { default: "Base Wallet Checker", template: "%s • Base Wallet Checker" },
+    title:  "Base Wallet Checker",
     description:
       "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20 and NFT transfers, fees, peers, and more.",
     metadataBase: new URL(ROOT),
@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
         button: {
           title: "Launch Base Wallet Checker",
           action: {
-            type: "launch_miniapp",
+            type: "launch_frame",
             name: "Base Wallet Checker",
             url: ROOT,
             splashImageUrl: `${ROOT}/og.png`,
