@@ -13,36 +13,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export const metadata: Metadata = {
-  title: {
-    default: "Base Wallet Checker",
-    template: "%s • Base Wallet Checker",
-  },
-  description:
-    "Frontend-only Base wallet checker using Blockscout (no accounts). Analyze Base addresses for native, ERC-20, and NFT transfers, fees, peers, and more.",
-  metadataBase: new URL("https://base-walletchecker.vercel.app"),
-  openGraph: {
-    type: "website",
-    title: "Base Wallet Checker",
-    description:
-      "Analyze any Base address: native/ ERC-20/ NFT transfers, fees, peers, days active, and more.",
-    url: "/",
-    images: ["/og.png"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Base Wallet Checker",
-    description:
-      "Analyze Base wallet activity with clean stats pulled from Blockscout.",
-    images: ["/og.png"],
-  },
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
-};
-
+ 
 export default function RootLayout({
   children,
 }: {
