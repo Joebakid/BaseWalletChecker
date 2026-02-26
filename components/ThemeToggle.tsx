@@ -1,48 +1,38 @@
-// components/ThemeToggle.tsx
 "use client";
+
 import { useEffect, useState } from "react";
 
-type Theme = "light" | "dim" | "dark";
+type Theme = "light" | "dark";
 const STORAGE_KEY = "theme";
-const ALL: Theme[] = ["light", "dim", "dark"];
 
-function apply(t: Theme) {
+function applyTheme(t: Theme) {
   const el = document.documentElement;
-  el.classList.remove(...ALL);
+  el.classList.remove("light", "dark");
   el.classList.add(t);
-}
-function next(t: Theme): Theme {
-  if (t === "dark") return "light";
-  if (t === "light") return "dim";
-  return "dark";
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dim");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as Theme) || "dim";
+    const saved = (localStorage.getItem(STORAGE_KEY) as Theme) || "dark";
     setTheme(saved);
-    apply(saved);
   }, []);
 
-  const handle = () => {
-    const t = next(theme);
-    setTheme(t);
-    localStorage.setItem(STORAGE_KEY, t);
-    apply(t);
+  const toggle = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
   };
-
-  const label = theme === "light" ? "Light" : theme === "dim" ? "Dim" : "Dark";
 
   return (
     <button
-      onClick={handle}
-      className="rounded-xl px-3 py-2 border text-sm hover:opacity-80"
+      onClick={toggle}
+      className="rounded-xl px-3 py-2 border border-[hsl(var(--border))] text-sm hover:opacity-80"
       aria-label="Toggle theme"
-      title="Cycle Light → Dim → Dark"
     >
-      {label}
+      {theme === "dark" ? "Dark" : "Light"}
     </button>
   );
 }
