@@ -26,7 +26,7 @@ export const minikitConfig = {
     splashBackgroundColor: "#000000",
     homeUrl: process.env.NEXT_PUBLIC_ROOT_URL,
     webhookUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/api/webhook`,
-    primaryCategory: "utilities",
+    primaryCategory: "utility",
     tags: ["base", "wallet", "analytics"],
     heroImageUrl: `${process.env.NEXT_PUBLIC_ROOT_URL}/og.png`,
     tagline: "Check Base activity at a glance",
